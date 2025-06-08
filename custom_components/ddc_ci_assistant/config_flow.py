@@ -1,27 +1,47 @@
+# custom_components/ddcci_ci_assistant/config_flow.py
+
+from __future__ import annotations
+
 import voluptuous as vol
+
 from homeassistant import config_entries
+from homeassistant.core import callback
+from homeassistant.const import CONF_HOST, CONF_PORT
 
-from .const import DOMAIN, CONF_HOST, CONF_PORT, DEFAULT_PORT
+from .const import DOMAIN, DEFAULT_PORT
 
-class DDCConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle the config flow for DDC CI Assistant."""
+class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for DDC CI Assistant."""
 
     VERSION = 1
+    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
-    async def async_step_user(self, user_input=None):
-        errors = {}
-        if user_input:
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the initial step where the user provides host/port."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            # Create the entry and move on
             return self.async_create_entry(
                 title=f"DDC CI Assistant @ {user_input[CONF_HOST]}",
-                data=user_input
+                data=user_input,
             )
 
-        data_schema = vol.Schema({
-            vol.Required(CONF_HOST): str,
-            vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
-        })
-        return self.async_show_form(
-            step_id="user",
-            data_schema=data_schema,
-            errors=errors
+        # Show the form to ask for host & port
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_HOST): str,
+                vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
+            }
         )
+        return self.async_show_form(
+            step_id="user", data_schema=data_schema, errors=errors
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """If you later add options, return an OptionsFlow here."""
+        return None
