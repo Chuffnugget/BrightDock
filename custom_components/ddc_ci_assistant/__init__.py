@@ -9,6 +9,7 @@ from .coordinator import DDCDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: dict):
+    """Set up the integration (no-op - all config via UI)."""
     hass.data.setdefault(DOMAIN, {})
     return True
 
@@ -22,8 +23,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    _LOGGER.info("Setting up entities for DDC CI Assistant @ %s:%s", host, port)
-    hass.config_entries.async_setup_platforms(entry, ["sensor", "number"])
+    _LOGGER.info(
+        "Forwarding DDC CI Assistant entry to platforms @ %s:%s", host, port
+    )
+    # Forward the entry to sensor and number platforms
+    await hass.config_entries.async_forward_entry_setup(entry, "sensor")
+    await hass.config_entries.async_forward_entry_setup(entry, "number")
 
     return True
 
