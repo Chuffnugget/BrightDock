@@ -1,7 +1,7 @@
 {
   "domain": "ddcci_ci_assistant",
   "name": "DDC CI Assistant",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "documentation": "https://github.com/Chuffnugget/DDC-CI-Assistant",
   "issue_tracker": "https://github.com/Chuffnugget/DDC-CI-Assistant/issues",
   "dependencies": [],
