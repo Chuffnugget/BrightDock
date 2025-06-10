@@ -1,1 +1,1 @@
-# DDC-CI-Assistant
+# BrightDock
