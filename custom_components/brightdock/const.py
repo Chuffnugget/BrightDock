@@ -1,7 +1,6 @@
 # File: const.py
 # Description: Python file for storing constants that may be used in other Python files.
 # Author: Chuffnugget
-
 DOMAIN = "ddcci_ci_assistant"
 
 CONF_HOST = "host"
