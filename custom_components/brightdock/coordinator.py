@@ -1,3 +1,7 @@
+# File: coordinator.py
+# Description: Python file fetching BrightDock Core values and handles discovery.
+# Author: Chuffnugget
+
 import logging
 from datetime import timedelta
 
