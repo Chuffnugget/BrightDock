@@ -1,3 +1,6 @@
+# File: __init__.py
+# Description: Python file for initialising the BrightDock integration.
+# Author: Chuffnugget
 import logging
 
 from homeassistant.config_entries import ConfigEntry
