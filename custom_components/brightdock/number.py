@@ -1,3 +1,6 @@
+# File: number.py
+# Description: Python file that communicates with the coordinator and manages number entities.
+# Author: Chuffnugget
 import logging
 
 from homeassistant.components.number import NumberEntity
