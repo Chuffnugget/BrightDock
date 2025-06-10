@@ -1,3 +1,3 @@
 # BrightDock
 
-WIP: You'll find out soon enough :)
+WIP: You'll find out soon enough. :)
