@@ -1,4 +1,6 @@
-# custom_components/ddcci_ci_assistant/config_flow.py
+# File: __init__.py
+# Description: Python file for managing the BrightDock devices and integration setup.
+# Author: Chuffnugget
 
 from __future__ import annotations
 
