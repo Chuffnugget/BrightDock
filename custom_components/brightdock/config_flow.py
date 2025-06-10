@@ -1,7 +1,6 @@
 # File: config_flow.py
 # Description: Python file for managing the BrightDock devices and integration setup.
 # Author: Chuffnugget
-
 from __future__ import annotations
 
 import voluptuous as vol
