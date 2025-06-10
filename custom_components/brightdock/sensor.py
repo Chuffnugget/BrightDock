@@ -1,3 +1,6 @@
+# File: sensor.py
+# Description: Python file that communicates with the coordinator and manages sensor entities.
+# Author: Chuffnugget
 import logging
 
 from homeassistant.components.sensor import SensorEntity
