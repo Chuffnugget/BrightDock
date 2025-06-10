@@ -1,4 +1,4 @@
-# File: __init__.py
+# File: config_flow.py
 # Description: Python file for managing the BrightDock devices and integration setup.
 # Author: Chuffnugget
 
