@@ -1,0 +1,16 @@
+# File: compose.yaml
+# Description: Docker Compose file for BrightDock Core. This should be used to manage the service once the image has been built.
+# Author: Chuffnugget
+services:
+  ddcci-server:
+    build: .
+    network_mode: host
+    privileged: true
+    volumes:
+      - /dev:/dev
+    environment:
+      HA_URL: "x"
+      HA_TOKEN: "x"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
