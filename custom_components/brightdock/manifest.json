@@ -9,5 +9,5 @@
   "config_flow": true,
   "supports_entry_removal": true,
   "requirements": ["aiohttp"],
-  "version": "1.0.5"
+  "version": "0.0.1"
 }
