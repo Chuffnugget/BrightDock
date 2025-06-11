@@ -22,4 +22,4 @@ RUN pip install --no-cache-dir -U pip \
 COPY app ./app
 
 # No HTTP port to expose—this script just talks to HA
-ENTRYPOINT ["python3", "app/displayServer_async.py"]
+ENTRYPOINT ["python3", "app/brightdock-core.py"]

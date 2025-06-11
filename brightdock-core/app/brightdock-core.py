@@ -1,57 +1,6 @@
 # File: brightdock-core.py
 # Description: Python file for BrightDock Core. 
 # Author: Chuffnugget
-
-FROM python:3.11-slim
-
-# Install ddcutil + i2c-tools and build tools
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-      ddcutil \
-      i2c-tools \
-      libusb-1.0-0 \
-      build-essential \
-      python3-dev \
- && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -U pip \
- && pip install --no-cache-dir -r requirements.txt
-
-COPY app ./app
-
-# No HTTP port to expose—this script just talks to HA
-ENTRYPOINT ["python3", "app/displayServer_async.py"]
-
-chuffnugget@RAR-P1:~/servers/ddcci-server $ ^C
-chuffnugget@RAR-P1:~/servers/ddcci-server $ ls
-caapp  backups  compose.yaml  Dockerfile  requirements.txt
-chuffnugget@RAR-P1:~/servers/ddcci-server $ cat compose.yaml
-services:
-  ddcci-server:
-    build: .
-    network_mode: host
-    privileged: true
-    volumes:
-      - /dev:/dev
-    environment:
-      HA_URL: "http://192.168.0.3:8123"
-      HA_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxMzAwNjI3OTM2MDI0NTFjYTc0NTFhYTQ0NjVhOWY5OCIsImlhdCI6MTc0OTQxMjA0NywiZXhwIjoyMDY0NzcyMDQ3fQ.hC6YFxx502a9JVs-p7jKSdhaqJtjAszo5vlsuI3v524"
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
-
-chuffnugget@RAR-P1:~/servers/ddcci-server $ ^C
-chuffnugget@RAR-P1:~/servers/ddcci-server $ ▒^C
-chuffnugget@RAR-P1:~/servers/ddcci-server $ ls
-app  backups  compose.yaml  Dockerfile  requirements.txt
-chuffnugget@RAR-P1:~/servers/ddcci-server $ cd app
-chuffnugget@RAR-P1:~/servers/ddcci-server/app $ ls
-displayServer_async.py
-chuffnugget@RAR-P1:~/servers/ddcci-server/app $ cat displayServer_async.py
-#!/usr/bin/env python3
 import os
 import re
 import sys
