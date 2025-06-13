@@ -5,12 +5,12 @@
 import logging
 
 from homeassistant.components.number import NumberEntity
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up Number entities for each supported control."""
@@ -18,11 +18,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
 
     for ctrl, values in coordinator.data["controls"].items():
-        for mon_id in values:
+        for mon_id, val in values.items():
             _LOGGER.info("Registering Number entity: Monitor %s %s", mon_id, ctrl)
             entities.append(DDCNumber(coordinator, entry.entry_id, mon_id, ctrl))
 
     async_add_entities(entities, update_before_add=True)
+
 
 class DDCNumber(CoordinatorEntity, NumberEntity):
     """Representation of a DDC/CI control (brightness, contrast, input)."""
@@ -33,17 +34,8 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
         self._mon_id = mon_id
         self._control = control
 
-        host = coordinator.host
-        port = coordinator.port
-
         self._attr_name = f"Monitor {mon_id} {control.replace('_', ' ').title()}"
         self._attr_unique_id = f"{entry_id}_{mon_id}_{control}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{host}:{port}")},
-            name=f"BrightDock Core @ {host}",
-            manufacturer="Chuffnugget",
-            model="BrightDock Core",
-        )
 
         # brightness/contrast: 0–100%, input_source: raw code 0–255
         if control in ("brightness", "contrast"):
@@ -72,7 +64,18 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
             self._control, self._mon_id, value
         )
         await self.coordinator.session.post(
-            f"{url}/monitors/{self._mon_id}/{self._control}", json=payload
+            f"{url}/monitors/{self._mon_id}/{self._control}",
+            json=payload
         )
         await self.coordinator.async_request_refresh()
+
+    @property
+    def device_info(self):
+        """Tie this entity to the underlying BrightDock Core device."""
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": f"BrightDock Core @ {self.coordinator.host}:{self.coordinator.port}",
+            "manufacturer": "Chuffnugget",
+            "model": "DDC/CI Monitor Controller",
+        }
 

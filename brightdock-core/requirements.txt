@@ -11,3 +11,6 @@ uvicorn[standard]>=0.34.3
 # Async HTTP client (and WebSocket) for HA push/poll
 aiohttp>=3.8.0
 
+# Service discovery via mDNS/zeroconf
+zeroconf>=0.52.0
+

@@ -5,12 +5,12 @@
 import logging
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up Sensor entities for each monitor’s model name."""
@@ -25,6 +25,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     async_add_entities(entities)
 
+
 class DDCSensor(CoordinatorEntity, SensorEntity):
     """Representation of a monitor’s model name."""
 
@@ -34,19 +35,20 @@ class DDCSensor(CoordinatorEntity, SensorEntity):
         self._mon_id = mon_id
         self._model = model
 
-        host = coordinator.host
-        port = coordinator.port
-
         self._attr_name = f"Monitor {mon_id} Model"
         self._attr_unique_id = f"{entry_id}_{mon_id}_model"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{host}:{port}")},
-            name=f"BrightDock Core @ {host}",
-            manufacturer="Chuffnugget",
-            model="BrightDock Core",
-        )
 
     @property
     def native_value(self) -> str:
         return self._model
+
+    @property
+    def device_info(self):
+        """Tie this entity to the underlying BrightDock Core device."""
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": f"BrightDock Core @ {self.coordinator.host}:{self.coordinator.port}",
+            "manufacturer": "Chuffnugget",
+            "model": "DDC/CI Monitor Controller",
+        }
 
