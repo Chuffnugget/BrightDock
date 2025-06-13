@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # File: brightdock-core.py
-# Description: BrightDock Core server: 
-#              • exposes DDC/CI controls over HTTP & WebSocket
-#              • advertises via mDNS for auto‐discovery
-#              • logs hot‐plug events when monitors are added/removed
+# Description: BrightDock Core server:
+#   • exposes DDC/CI controls over HTTP & WebSocket
+#   • advertises via mDNS for auto-discovery
+#   • logs hot-plug events when monitors are added/removed
 # Author: Chuffnugget
 
 import os
@@ -36,7 +36,6 @@ except ValueError:
 SERVICE_TYPE  = "_brightdock-core._tcp.local."
 SERVICE_NAME  = "BrightDock Core"
 
-# Show the raw config if something’s wrong
 _config = {
     "HA_URL": HA_URL,
     "HA_TOKEN_set": bool(HA_TOKEN),
@@ -45,17 +44,14 @@ _config = {
     "SERVICE_NAME": SERVICE_NAME,
 }
 
-# Basic required vars
 if not HA_URL or not HA_TOKEN:
     print(f"Configuration error: HA_URL and HA_TOKEN are required. Current config: {_config}", file=sys.stderr)
     sys.exit(1)
 
-# URL must be http(s)://
 if not HA_URL.startswith(("http://", "https://")):
     print(f"Configuration error: HA_URL must start with http:// or https://. Current config: {_config}", file=sys.stderr)
     sys.exit(1)
 
-# Poll interval positive
 if POLL_INTERVAL <= 0:
     print(f"Configuration error: POLL_INTERVAL must be > 0. Current config: {_config}", file=sys.stderr)
     sys.exit(1)
@@ -68,7 +64,6 @@ HEADERS = {
 _LOGGER = logging.getLogger("brightdock_core")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-# VCP codes we expose via HTTP
 VCP_CODES = {
     "brightness":   "10",
     "contrast":     "12",
@@ -90,7 +85,6 @@ class InputPayload(BaseModel):
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log every incoming HTTP request and its response code."""
     _LOGGER.info(f"HTTP {request.method} {request.url.path}")
     response = await call_next(request)
     _LOGGER.info(f"→ {response.status_code} {request.url.path}")
@@ -98,7 +92,6 @@ async def log_requests(request: Request, call_next):
 
 @app.get("/monitors")
 async def api_list_monitors():
-    """Return list of detected monitors."""
     return [
         {"id": idx, "model": mon["model"], "bus": mon["bus"]}
         for idx, mon in MONITORS.items()
@@ -106,7 +99,6 @@ async def api_list_monitors():
 
 @app.get("/monitors/{mon_id}/brightness")
 async def api_get_brightness(mon_id: int):
-    """Get brightness for the given monitor."""
     try:
         bus = MONITORS[mon_id]["bus"]
         val = await read_vcp(bus, VCP_CODES["brightness"])
@@ -116,7 +108,6 @@ async def api_get_brightness(mon_id: int):
 
 @app.post("/monitors/{mon_id}/brightness")
 async def api_set_brightness(mon_id: int, payload: BrightnessPayload):
-    """Set brightness for the given monitor."""
     try:
         bus = MONITORS[mon_id]["bus"]
     except KeyError:
@@ -126,7 +117,6 @@ async def api_set_brightness(mon_id: int, payload: BrightnessPayload):
 
 @app.get("/monitors/{mon_id}/contrast")
 async def api_get_contrast(mon_id: int):
-    """Get contrast for the given monitor."""
     try:
         bus = MONITORS[mon_id]["bus"]
         val = await read_vcp(bus, VCP_CODES["contrast"])
@@ -136,7 +126,6 @@ async def api_get_contrast(mon_id: int):
 
 @app.post("/monitors/{mon_id}/contrast")
 async def api_set_contrast(mon_id: int, payload: ContrastPayload):
-    """Set contrast for the given monitor."""
     try:
         bus = MONITORS[mon_id]["bus"]
     except KeyError:
@@ -146,7 +135,6 @@ async def api_set_contrast(mon_id: int, payload: ContrastPayload):
 
 @app.get("/monitors/{mon_id}/input_source")
 async def api_get_input(mon_id: int):
-    """Get input source for the given monitor."""
     try:
         bus = MONITORS[mon_id]["bus"]
         val = await read_vcp(bus, VCP_CODES["input_source"])
@@ -156,7 +144,6 @@ async def api_get_input(mon_id: int):
 
 @app.post("/monitors/{mon_id}/input_source")
 async def api_set_input(mon_id: int, payload: InputPayload):
-    """Set input source for the given monitor."""
     try:
         bus = MONITORS[mon_id]["bus"]
     except KeyError:
@@ -167,7 +154,6 @@ async def api_set_input(mon_id: int, payload: InputPayload):
 # ── Startup Banner + mDNS Advertisement ───────────────────────────────────────
 
 def get_ip_address(ifname: str) -> str | None:
-    """Return IPv4 address for an interface, or None."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         packed = struct.pack("256s", ifname[:15].encode())
@@ -177,7 +163,6 @@ def get_ip_address(ifname: str) -> str | None:
         return None
 
 async def print_startup_info():
-    """Print debug info and HA connectivity check."""
     _LOGGER.info("┌─────────────────────────────────────────────")
     _LOGGER.info("│ BrightDock Core Debug Info on Startup")
     _LOGGER.info("├─────────────────────────────────────────────")
@@ -205,7 +190,6 @@ async def print_startup_info():
 # ── DDC/CI via ddcutil ────────────────────────────────────────────────────────
 
 async def run_ddc(cmd: str) -> str:
-    """Run a ddcutil command asynchronously and return its stdout."""
     _LOGGER.debug(f"▶️  CMD: {cmd}")
     proc = await asyncio.create_subprocess_shell(
         cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -219,7 +203,6 @@ async def run_ddc(cmd: str) -> str:
     return stdout
 
 async def detect_monitors() -> list[dict]:
-    """Detect all DDC/CI-capable monitors via ddcutil."""
     text = await run_ddc("ddcutil detect")
     monitors = []
     current = {}
@@ -240,7 +223,6 @@ async def detect_monitors() -> list[dict]:
     return monitors
 
 async def get_capabilities(bus: str) -> list[dict]:
-    """Fetch all VCP features for a given I²C bus."""
     text = await run_ddc(f"ddcutil --bus {bus} capabilities")
     feats = []
     current = None
@@ -259,23 +241,22 @@ async def get_capabilities(bus: str) -> list[dict]:
     return feats
 
 async def read_vcp(bus: str, code: str) -> int | None:
-    """Read a single VCP feature value."""
     out = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
     m = re.search(r"current value\s*=\s*(\d+)", out)
-    if m: return int(m.group(1))
+    if m:
+        return int(m.group(1))
     m = re.search(r"current value\s*=\s*0x([0-9A-Fa-f]+)", out)
-    if m: return int(m.group(1), 16)
+    if m:
+        return int(m.group(1), 16)
     return None
 
 async def write_vcp(bus: str, code: str, val: int):
-    """Write a single VCP feature value."""
     await run_ddc(f"ddcutil --bus {bus} setvcp {code} {val}")
     _LOGGER.info(f"🔧 setvcp bus={bus} code={code} → {val}")
 
 # ── Home Assistant Registration ──────────────────────────────────────────────
 
 async def post_state(entity: str, state, attrs: dict | None = None):
-    """POST the current state and attributes to Home Assistant."""
     url = f"{HA_URL}/api/states/{entity}"
     body = {"state": str(state)}
     if attrs:
@@ -295,7 +276,6 @@ _zc: Zeroconf | None     = None
 _info: ServiceInfo | None = None
 
 async def init_monitors_and_register():
-    """Detect monitors, fetch features, and register entities in HA."""
     raw = await detect_monitors()
     for idx, mon in enumerate(raw):
         bus   = mon["bus"]
@@ -331,7 +311,6 @@ async def init_monitors_and_register():
     _LOGGER.info("Initialization and HA registration complete.")
 
 async def ws_listener():
-    """Listen for state_changed events from HA and push to monitor."""
     url = HA_URL.replace("http", "ws") + "/api/websocket"
     _LOGGER.info(f"WS listener connecting to {url}")
     session = aiohttp.ClientSession()
@@ -375,7 +354,6 @@ async def ws_listener():
     await session.close()
 
 async def poll_loop():
-    """Poll all controls periodically to update HA states."""
     while True:
         for idx, mon in MONITORS.items():
             bus = mon["bus"]
@@ -399,20 +377,45 @@ async def poll_loop():
         await asyncio.sleep(POLL_INTERVAL)
 
 async def main():
-    """Main entrypoint: banner, mDNS, init, HTTP, WS, poll, teardown."""
     global _zc, _info
 
-    # 1) debug banner
     await print_startup_info()
 
-    # 2) advertise via mDNS
+    # mDNS advertisement
+    hostname = socket.gethostname()
+    ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
+    port     = 8000
+    props    = {"version": "0.0.5", "application": SERVICE_NAME}
+    _info    = ServiceInfo(
+        SERVICE_TYPE,
+        f"{hostname}.{SERVICE_TYPE}",
+        addresses=[socket.inet_aton(ip_addr)],
+        port=port,
+        properties=props,
+        server=f"{hostname}.local."
+    )
+    _zc = Zeroconf()
+    _zc.register_service(_info)
+    _LOGGER.info(f"Registered mDNS service {SERVICE_TYPE} on {ip_addr}:{port}")
+
+    await init_monitors_and_register()
+
+    _LOGGER.info("Launching HTTP server, WS listener, and poll loop")
+    config    = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+    server    = uvicorn.Server(config)
+    http_task = asyncio.create_task(server.serve())
+    ws_task   = asyncio.create_task(ws_listener())
+    poll_task = asyncio.create_task(poll_loop())
+
+    await asyncio.wait([http_task, ws_task, poll_task], return_when=asyncio.FIRST_COMPLETED)
+
+    # Cleanup mDNS
+    _LOGGER.info("Unregistering mDNS service and shutting down…")
+    _zc.unregister_service(_info)
+    _zc.close()
+
+if __name__ == "__main__":
     try:
-        hostname = socket.gethostname()
-        ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
-        port     = 8000
-        props    = {"version": "0.0.5", "application": SERVICE_NAME}
-        info     = ServiceInfo(
-            SERVICE_TYPE,
-            f"{hostname}.{SERVICE_TYPE}",
-            addresses=[socket.inet_aton(ip_addr)],
-            port=port,
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        _LOGGER.info("Shutting down…")
