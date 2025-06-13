@@ -1,9 +1,11 @@
 # File: sensor.py
 # Description: Python file that communicates with the coordinator and manages sensor entities.
 # Author: Chuffnugget
+
 import logging
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -32,9 +34,19 @@ class DDCSensor(CoordinatorEntity, SensorEntity):
         self._mon_id = mon_id
         self._model = model
 
+        host = coordinator.host
+        port = coordinator.port
+
         self._attr_name = f"Monitor {mon_id} Model"
         self._attr_unique_id = f"{entry_id}_{mon_id}_model"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{host}:{port}")},
+            name=f"BrightDock Core @ {host}",
+            manufacturer="Chuffnugget",
+            model="BrightDock Core",
+        )
 
     @property
     def native_value(self) -> str:
         return self._model
+

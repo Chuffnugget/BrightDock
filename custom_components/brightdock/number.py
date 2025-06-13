@@ -1,9 +1,11 @@
 # File: number.py
 # Description: Python file that communicates with the coordinator and manages number entities.
 # Author: Chuffnugget
+
 import logging
 
 from homeassistant.components.number import NumberEntity
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -16,7 +18,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
 
     for ctrl, values in coordinator.data["controls"].items():
-        for mon_id, val in values.items():
+        for mon_id in values:
             _LOGGER.info("Registering Number entity: Monitor %s %s", mon_id, ctrl)
             entities.append(DDCNumber(coordinator, entry.entry_id, mon_id, ctrl))
 
@@ -31,8 +33,17 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
         self._mon_id = mon_id
         self._control = control
 
+        host = coordinator.host
+        port = coordinator.port
+
         self._attr_name = f"Monitor {mon_id} {control.replace('_', ' ').title()}"
         self._attr_unique_id = f"{entry_id}_{mon_id}_{control}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{host}:{port}")},
+            name=f"BrightDock Core @ {host}",
+            manufacturer="Chuffnugget",
+            model="BrightDock Core",
+        )
 
         # brightness/contrast: 0–100%, input_source: raw code 0–255
         if control in ("brightness", "contrast"):
@@ -61,7 +72,7 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
             self._control, self._mon_id, value
         )
         await self.coordinator.session.post(
-            f"{url}/monitors/{self._mon_id}/{self._control}",
-            json=payload
+            f"{url}/monitors/{self._mon_id}/{self._control}", json=payload
         )
         await self.coordinator.async_request_refresh()
+

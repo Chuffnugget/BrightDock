@@ -1,6 +1,7 @@
 # File: config_flow.py
 # Description: Python file for managing the BrightDock devices and integration setup.
 # Author: Chuffnugget
+
 from __future__ import annotations
 
 import voluptuous as vol
@@ -11,8 +12,8 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 
 from .const import DOMAIN, DEFAULT_PORT
 
-class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for DDC CI Assistant."""
+class BrightDockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for BrightDock Core."""
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
@@ -26,7 +27,7 @@ class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             # Create the entry and move on
             return self.async_create_entry(
-                title=f"DDC CI Assistant @ {user_input[CONF_HOST]}",
+                title=f"BrightDock @ {user_input[CONF_HOST]}",
                 data=user_input,
             )
 
@@ -46,3 +47,4 @@ class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         """If you later add options, return an OptionsFlow here."""
         return None
+

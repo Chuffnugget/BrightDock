@@ -1,6 +1,7 @@
 # File: coordinator.py
 # Description: Python file fetching BrightDock Core values and handles discovery.
 # Author: Chuffnugget
+
 import logging
 from datetime import timedelta
 
@@ -72,3 +73,4 @@ class DDCDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as err:
             _LOGGER.error("Failed fetching DDC data: %s", err, exc_info=True)
             raise UpdateFailed(err)
+
