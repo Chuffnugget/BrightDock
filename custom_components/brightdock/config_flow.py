@@ -1,35 +1,32 @@
 # File: config_flow.py
 # Description: Python file for managing the BrightDock devices and integration setup.
 # Author: Chuffnugget
-
 from __future__ import annotations
+
 import voluptuous as vol
-import logging
 
 from homeassistant import config_entries
-from homeassistant.core import callback
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import callback
+from homeassistant.helpers.typing import DiscoveryInfoType
 
 from .const import DOMAIN, DEFAULT_PORT
 
-_LOGGER = logging.getLogger(__name__)
-
-
-class BrightDockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for BrightDock."""
+class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for BrightDock integration."""
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """User-initiated setup (manually enter host/port)."""
+    ) -> config_entries.FlowResult:
+        """Handle the initial step where the user provides host/port."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             return self.async_create_entry(
-                title=f"BrightDock @ {user_input[CONF_HOST]}",
+                title=f"BrightDock @ {user_input[CONF_HOST]}:{user_input[CONF_PORT]}",
                 data=user_input,
             )
 
@@ -44,15 +41,18 @@ class BrightDockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_zeroconf(
-        self, discovery_info: dict[str, Any]
-    ) -> FlowResult:
-        """Automatically configure discovered BrightDock Core via mDNS/zeroconf."""
-        host = discovery_info.get("host")
-        port = discovery_info.get("port", DEFAULT_PORT)
-        _LOGGER.debug("Zeroconf discovered BrightDock Core at %s:%s", host, port)
+        self, discovery_info: DiscoveryInfoType
+    ) -> config_entries.FlowResult:
+        """Handle zeroconf discovery of a BrightDock Core HTTP server."""
+        host = discovery_info["host"]
+        port = discovery_info["port"]
+
+        # Prevent duplicates
+        await self.async_set_unique_id(f"{host}:{port}")
+        self._abort_if_unique_id_configured()
 
         return self.async_create_entry(
-            title=f"BrightDock @ {host}",
+            title=f"BrightDock @ {host}:{port}",
             data={CONF_HOST: host, CONF_PORT: port},
         )
 
@@ -61,4 +61,3 @@ class BrightDockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         """If you later add options, return an OptionsFlow here."""
         return None
-
