@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # File: brightdock-core.py
-# Description: Python file for BrightDock Core with mDNS advertisement.
+# Description: BrightDock Core server: 
+#              • exposes DDC/CI controls over HTTP & WebSocket
+#              • advertises via mDNS for auto‐discovery
+#              • logs hot‐plug events when monitors are added/removed
 # Author: Chuffnugget
 
 import os
@@ -24,12 +27,37 @@ from zeroconf import Zeroconf, ServiceInfo
 
 HA_URL        = os.getenv("HA_URL")
 HA_TOKEN      = os.getenv("HA_TOKEN")
-POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "30"))
+try:
+    POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "30"))
+except ValueError:
+    print("Configuration error: POLL_INTERVAL must be an integer", file=sys.stderr)
+    sys.exit(1)
+
 SERVICE_TYPE  = "_brightdock-core._tcp.local."
 SERVICE_NAME  = "BrightDock Core"
 
+# Show the raw config if something’s wrong
+_config = {
+    "HA_URL": HA_URL,
+    "HA_TOKEN_set": bool(HA_TOKEN),
+    "POLL_INTERVAL": POLL_INTERVAL,
+    "SERVICE_TYPE": SERVICE_TYPE,
+    "SERVICE_NAME": SERVICE_NAME,
+}
+
+# Basic required vars
 if not HA_URL or not HA_TOKEN:
-    print("Error: HA_URL and HA_TOKEN environment variables are required", file=sys.stderr)
+    print(f"Configuration error: HA_URL and HA_TOKEN are required. Current config: {_config}", file=sys.stderr)
+    sys.exit(1)
+
+# URL must be http(s)://
+if not HA_URL.startswith(("http://", "https://")):
+    print(f"Configuration error: HA_URL must start with http:// or https://. Current config: {_config}", file=sys.stderr)
+    sys.exit(1)
+
+# Poll interval positive
+if POLL_INTERVAL <= 0:
+    print(f"Configuration error: POLL_INTERVAL must be > 0. Current config: {_config}", file=sys.stderr)
     sys.exit(1)
 
 HEADERS = {
@@ -378,42 +406,13 @@ async def main():
     await print_startup_info()
 
     # 2) advertise via mDNS
-    hostname = socket.gethostname()
-    ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
-    port     = 8000
-    props    = {"version": "0.0.5", "application": SERVICE_NAME}
-    info     = ServiceInfo(
-        SERVICE_TYPE,
-        f"{hostname}.{SERVICE_TYPE}",
-        addresses=[socket.inet_aton(ip_addr)],
-        port=port,
-        properties=props,
-        server=f"{hostname}.local."
-    )
-    _zc = Zeroconf()
-    _zc.register_service(info)
-    _LOGGER.info(f"Registered mDNS service {SERVICE_TYPE} on {ip_addr}:{port}")
-
-    # 3) detect & HA register
-    await init_monitors_and_register()
-
-    # 4) run HTTP, WS, and poll loop in parallel
-    _LOGGER.info("Launching HTTP server, WS listener, and poll loop")
-    config    = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
-    server    = uvicorn.Server(config)
-    http_task = asyncio.create_task(server.serve())
-    ws_task   = asyncio.create_task(ws_listener())
-    poll_task = asyncio.create_task(poll_loop())
-
-    await asyncio.wait([http_task, ws_task, poll_task], return_when=asyncio.FIRST_COMPLETED)
-
-    # 5) cleanup mDNS
-    _LOGGER.info("Unregistering mDNS service and shutting down…")
-    _zc.unregister_service(info)
-    _zc.close()
-
-if __name__ == "__main__":
     try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        _LOGGER.info("Shutting down…")
+        hostname = socket.gethostname()
+        ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
+        port     = 8000
+        props    = {"version": "0.0.5", "application": SERVICE_NAME}
+        info     = ServiceInfo(
+            SERVICE_TYPE,
+            f"{hostname}.{SERVICE_TYPE}",
+            addresses=[socket.inet_aton(ip_addr)],
+            port=port,
