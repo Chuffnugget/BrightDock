@@ -51,11 +51,11 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
             self._attr_mode = "box"
 
     @property
-    def value(self) -> float | None:
+    def native_value(self) -> float | None:
         """Return the current value from the coordinator."""
         return self.coordinator.data["controls"][self._control].get(self._mon_id)
 
-    async def async_set_value(self, value: float) -> None:
+    async def async_set_native_value(self, value: float) -> None:
         """Handle user changing the value; POST back to the REST server."""
         url = f"http://{self.coordinator.host}:{self.coordinator.port}"
         payload = {self._control: int(value)}
@@ -67,15 +67,5 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
             f"{url}/monitors/{self._mon_id}/{self._control}",
             json=payload
         )
+        # trigger an immediate data refresh
         await self.coordinator.async_request_refresh()
-
-    @property
-    def device_info(self):
-        """Tie this entity to the underlying BrightDock Core device."""
-        return {
-            "identifiers": {(DOMAIN, self._entry_id)},
-            "name": f"BrightDock Core @ {self.coordinator.host}:{self.coordinator.port}",
-            "manufacturer": "Chuffnugget",
-            "model": "DDC/CI Monitor Controller",
-        }
-
