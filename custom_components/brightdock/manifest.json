@@ -9,6 +9,6 @@
   "name": "BrightDock",
   "requirements": ["aiohttp"],
   "supports_entry_removal": true,
-  "version": "0.0.6",
+  "version": "0.0.7",
   "zeroconf": ["_brightdock-core._tcp.local."]
 }
