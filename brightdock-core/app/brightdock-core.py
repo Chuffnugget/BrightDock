@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # File: brightdock-core.py
-# Description: BrightDock Core server:
-#   • exposes DDC/CI controls over HTTP & WebSocket
-#   • advertises via mDNS for auto-discovery
-#   • logs hot-plug events when monitors are added/removed
+# Description: Python file for BrightDock Core with mDNS advertisement.
 # Author: Chuffnugget
 
 import os
@@ -27,42 +24,38 @@ from zeroconf import Zeroconf, ServiceInfo
 
 HA_URL        = os.getenv("HA_URL")
 HA_TOKEN      = os.getenv("HA_TOKEN")
-try:
-    POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "30"))
-except ValueError:
-    print("Configuration error: POLL_INTERVAL must be an integer", file=sys.stderr)
-    sys.exit(1)
-
+POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "30"))
 SERVICE_TYPE  = "_brightdock-core._tcp.local."
 SERVICE_NAME  = "BrightDock Core"
 
+# Validate config early
 _config = {
     "HA_URL": HA_URL,
     "HA_TOKEN_set": bool(HA_TOKEN),
     "POLL_INTERVAL": POLL_INTERVAL,
-    "SERVICE_TYPE": SERVICE_TYPE,
-    "SERVICE_NAME": SERVICE_NAME,
 }
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+_LOGGER = logging.getLogger("brightdock_core")
+_LOGGER.info("Starting BrightDock Core with config: %s", _config)
 
 if not HA_URL or not HA_TOKEN:
-    print(f"Configuration error: HA_URL and HA_TOKEN are required. Current config: {_config}", file=sys.stderr)
+    _LOGGER.error(
+        "Configuration error: HA_URL and HA_TOKEN environment variables are required. "
+        "Current config: %s", _config
+    )
     sys.exit(1)
 
 if not HA_URL.startswith(("http://", "https://")):
-    print(f"Configuration error: HA_URL must start with http:// or https://. Current config: {_config}", file=sys.stderr)
-    sys.exit(1)
-
-if POLL_INTERVAL <= 0:
-    print(f"Configuration error: POLL_INTERVAL must be > 0. Current config: {_config}", file=sys.stderr)
+    _LOGGER.error(
+        "Configuration error: HA_URL must start with http:// or https://. "
+        "Current config: %s", _config
+    )
     sys.exit(1)
 
 HEADERS = {
     "Authorization": f"Bearer {HA_TOKEN}",
     "Content-Type":  "application/json",
 }
-
-_LOGGER = logging.getLogger("brightdock_core")
-logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 # VCP codes we expose via HTTP
 VCP_CODES = {
@@ -167,7 +160,7 @@ def get_ip_address(ifname: str) -> str | None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         packed = struct.pack("256s", ifname[:15].encode())
-        addr   = fcntl.ioctl(sock.fileno(), 0x8915, packed)[20:24]
+        addr = fcntl.ioctl(sock.fileno(), 0x8915, packed)[20:24]
         return socket.inet_ntoa(addr)
     except OSError:
         return None
@@ -186,8 +179,8 @@ async def print_startup_info():
         ifname = os.path.basename(path)
         if ifname == "lo":
             continue
-        ip   = get_ip_address(ifname) or "no IPv4"
-        typ  = "wireless" if os.path.isdir(f"/sys/class/net/{ifname}/wireless") else "ethernet"
+        ip = get_ip_address(ifname) or "no IPv4"
+        typ = "wireless" if os.path.isdir(f"/sys/class/net/{ifname}/wireless") else "ethernet"
         _LOGGER.info(f"│   • {ifname:10s} [{typ:8s}] → {ip}")
     _LOGGER.info("├─────────────────────────────────────────────")
     try:
@@ -217,7 +210,8 @@ async def run_ddc(cmd: str) -> str:
 async def detect_monitors() -> list[dict]:
     """Detect all DDC/CI-capable monitors via ddcutil."""
     text = await run_ddc("ddcutil detect")
-    monitors, current = [], {}
+    monitors = []
+    current = {}
     for line in text.splitlines():
         if line.startswith("Display"):
             if current:
@@ -228,7 +222,7 @@ async def detect_monitors() -> list[dict]:
             if m:
                 current["bus"] = m.group(1)
         elif "Model:" in line:
-            current["model"] = line.split("Model:", 1)[1].strip()
+            current["model"] = line.split("Model:",1)[1].strip()
     if current:
         monitors.append(current)
     _LOGGER.info(f"Detected monitors: {monitors}")
@@ -237,7 +231,8 @@ async def detect_monitors() -> list[dict]:
 async def get_capabilities(bus: str) -> list[dict]:
     """Fetch all VCP features for a given I²C bus."""
     text = await run_ddc(f"ddcutil --bus {bus} capabilities")
-    feats, current = [], None
+    feats = []
+    current = None
     for line in text.splitlines():
         m = re.match(r"\s*Feature:\s*([0-9A-Fa-f]+)\s*\((.+?)\)", line)
         if m:
@@ -256,11 +251,9 @@ async def read_vcp(bus: str, code: str) -> int | None:
     """Read a single VCP feature value."""
     out = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
     m = re.search(r"current value\s*=\s*(\d+)", out)
-    if m:
-        return int(m.group(1))
+    if m: return int(m.group(1))
     m = re.search(r"current value\s*=\s*0x([0-9A-Fa-f]+)", out)
-    if m:
-        return int(m.group(1), 16)
+    if m: return int(m.group(1), 16)
     return None
 
 async def write_vcp(bus: str, code: str, val: int):
@@ -272,7 +265,7 @@ async def write_vcp(bus: str, code: str, val: int):
 
 async def post_state(entity: str, state, attrs: dict | None = None):
     """POST the current state and attributes to Home Assistant."""
-    url  = f"{HA_URL}/api/states/{entity}"
+    url = f"{HA_URL}/api/states/{entity}"
     body = {"state": str(state)}
     if attrs:
         body["attributes"] = attrs
@@ -301,7 +294,7 @@ async def init_monitors_and_register():
         for feat in feats:
             code = feat["code"]
             name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-            base = f"ddcci_{idx}_{name}_{code}"
+            base = f"brightdock_{idx}_{name}_{code}"
             val  = await read_vcp(bus, code)
             if val is None:
                 _LOGGER.warning(f"Feature {code} ({feat['name']}) unreadable; skipping")
@@ -314,9 +307,10 @@ async def init_monitors_and_register():
             else:
                 if name in ("brightness", "contrast"):
                     ent   = f"number.{base}"
-                    attrs = {"friendly_name": f"{model} {feat['name']}",
-                             "min": 0, "max": 100, "step": 1,
-                             "unit_of_measurement": "%"}
+                    attrs = {
+                        "friendly_name": f"{model} {feat['name']}",
+                        "min": 0, "max": 100, "step": 1, "unit_of_measurement": "%"
+                    }
                     state = val
                 else:
                     ent   = f"sensor.{base}"
@@ -327,7 +321,7 @@ async def init_monitors_and_register():
 
 async def ws_listener():
     """Listen for state_changed events from HA and push to monitor."""
-    url     = HA_URL.replace("http", "ws") + "/api/websocket"
+    url = HA_URL.replace("http", "ws") + "/api/websocket"
     _LOGGER.info(f"WS listener connecting to {url}")
     session = aiohttp.ClientSession()
     async with session.ws_connect(url, headers=HEADERS) as ws:
@@ -357,7 +351,7 @@ async def ws_listener():
                 for feat in mon["features"]:
                     code = feat["code"]
                     name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                    base = f"ddcci_{idx}_{name}_{code}"
+                    base = f"brightdock_{idx}_{name}_{code}"
                     if feat["values"] and ent == f"input_select.{base}":
                         rev = {v: k for k, v in feat["values"].items()}
                         he  = rev.get(new)
@@ -377,7 +371,7 @@ async def poll_loop():
             for feat in mon["features"]:
                 code = feat["code"]
                 name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                base = f"ddcci_{idx}_{name}_{code}"
+                base = f"brightdock_{idx}_{name}_{code}"
                 val  = await read_vcp(bus, code)
                 if val is None:
                     continue
@@ -400,12 +394,12 @@ async def main():
     # 1) debug banner
     await print_startup_info()
 
-    # 2) synchronous mDNS advertisement off the event loop
+    # 2) advertise via mDNS
     hostname = socket.gethostname()
     ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
     port     = 8000
     props    = {"version": "0.0.5", "application": SERVICE_NAME}
-    _info    = ServiceInfo(
+    info     = ServiceInfo(
         SERVICE_TYPE,
         f"{hostname}.{SERVICE_TYPE}",
         addresses=[socket.inet_aton(ip_addr)],
@@ -414,13 +408,8 @@ async def main():
         server=f"{hostname}.local."
     )
     _zc = Zeroconf()
-
-    loop = asyncio.get_running_loop()
-    try:
-        await loop.run_in_executor(None, _zc.register_service, _info)
-        _LOGGER.info(f"Registered mDNS service {SERVICE_TYPE} on {ip_addr}:{port}")
-    except Exception as e:
-        _LOGGER.error(f"mDNS registration failed: {e}")
+    _zc.register_service(info)
+    _LOGGER.info(f"Registered mDNS service {SERVICE_TYPE} on {ip_addr}:{port}")
 
     # 3) detect & HA register
     await init_monitors_and_register()
@@ -437,10 +426,7 @@ async def main():
 
     # 5) cleanup mDNS
     _LOGGER.info("Unregistering mDNS service and shutting down…")
-    try:
-        await loop.run_in_executor(None, _zc.unregister_service, _info)
-    except Exception as e:
-        _LOGGER.error(f"mDNS unregister failed: {e}")
+    _zc.unregister_service(info)
     _zc.close()
 
 if __name__ == "__main__":
