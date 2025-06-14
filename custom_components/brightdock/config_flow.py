@@ -25,6 +25,10 @@ class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # Prevent duplicates by host:port
+            await self.async_set_unique_id(f"{user_input[CONF_HOST]}:{user_input[CONF_PORT]}")
+            self._abort_if_unique_id_configured()
+
             return self.async_create_entry(
                 title=f"BrightDock @ {user_input[CONF_HOST]}:{user_input[CONF_PORT]}",
                 data=user_input,
