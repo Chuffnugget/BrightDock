@@ -274,10 +274,11 @@ async def init_monitors_and_register():
         model = mon.get("model", f"monitor_{idx}")
         feats = await get_capabilities(bus)
         MONITORS[idx] = {"bus": bus, "model": model, "features": feats}
+
         for feat in feats:
             code = feat["code"]
             name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-            base = f"ddcci_{idx}_{name}_{code}"
+            base = f"brightdock_{idx}_{name}_{code}"
             val  = await read_vcp(bus, code)
             if val is None:
                 _LOGGER.warning(f"Feature {code} ({feat['name']}) unreadable; skipping")
@@ -339,7 +340,7 @@ async def ws_listener():
                 for feat in mon["features"]:
                     code = feat["code"]
                     name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                    base = f"ddcci_{idx}_{name}_{code}"
+                    base = f"brightdock_{idx}_{name}_{code}"
                     if feat["values"] and ent == f"input_select.{base}":
                         rev = {v: k for k, v in feat["values"].items()}
                         he  = rev.get(new)
@@ -359,7 +360,7 @@ async def poll_loop():
             for feat in mon["features"]:
                 code = feat["code"]
                 name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                base = f"ddcci_{idx}_{name}_{code}"
+                base = f"brightdock_{idx}_{name}_{code}"
                 val  = await read_vcp(bus, code)
                 if val is None:
                     continue
@@ -386,7 +387,7 @@ async def main():
     hostname = socket.gethostname()
     ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
     port     = 8000
-    props    = {"version": "0.0.5", "application": SERVICE_NAME}
+    props    = {"version": "0.0.7", "application": SERVICE_NAME}
     info     = ServiceInfo(
         SERVICE_TYPE,
         f"{hostname}.{SERVICE_TYPE}",
