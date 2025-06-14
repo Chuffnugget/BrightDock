@@ -28,34 +28,17 @@ POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "30"))
 SERVICE_TYPE  = "_brightdock-core._tcp.local."
 SERVICE_NAME  = "BrightDock Core"
 
-# Validate config early
-_config = {
-    "HA_URL": HA_URL,
-    "HA_TOKEN_set": bool(HA_TOKEN),
-    "POLL_INTERVAL": POLL_INTERVAL,
-}
-logging.basicConfig(level=logging.INFO, format="%(message)s")
-_LOGGER = logging.getLogger("brightdock_core")
-_LOGGER.info("Starting BrightDock Core with config: %s", _config)
-
 if not HA_URL or not HA_TOKEN:
-    _LOGGER.error(
-        "Configuration error: HA_URL and HA_TOKEN environment variables are required. "
-        "Current config: %s", _config
-    )
-    sys.exit(1)
-
-if not HA_URL.startswith(("http://", "https://")):
-    _LOGGER.error(
-        "Configuration error: HA_URL must start with http:// or https://. "
-        "Current config: %s", _config
-    )
+    print("Error: HA_URL and HA_TOKEN environment variables are required", file=sys.stderr)
     sys.exit(1)
 
 HEADERS = {
     "Authorization": f"Bearer {HA_TOKEN}",
     "Content-Type":  "application/json",
 }
+
+_LOGGER = logging.getLogger("brightdock_core")
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 # VCP codes we expose via HTTP
 VCP_CODES = {
@@ -294,11 +277,12 @@ async def init_monitors_and_register():
         for feat in feats:
             code = feat["code"]
             name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-            base = f"brightdock_{idx}_{name}_{code}"
+            base = f"ddcci_{idx}_{name}_{code}"
             val  = await read_vcp(bus, code)
             if val is None:
                 _LOGGER.warning(f"Feature {code} ({feat['name']}) unreadable; skipping")
                 continue
+
             if feat["values"]:
                 options = list(feat["values"].values())
                 ent     = f"input_select.{base}"
@@ -316,7 +300,9 @@ async def init_monitors_and_register():
                     ent   = f"sensor.{base}"
                     attrs = {"friendly_name": f"{model} {feat['name']}"}
                     state = val
+
             await post_state(ent, state, attrs)
+
     _LOGGER.info("Initialization and HA registration complete.")
 
 async def ws_listener():
@@ -330,12 +316,14 @@ async def ws_listener():
             _LOGGER.error(f"Unexpected WS init: {init}")
             await session.close()
             return
+
         await ws.send_json({"type": "auth", "access_token": HA_TOKEN})
         resp = await ws.receive_json()
         if resp.get("type") != "auth_ok":
             _LOGGER.error(f"WebSocket auth failed: {resp}")
             await session.close()
             return
+
         _LOGGER.info("WebSocket authenticated; listening for state_changed…")
         async for msg in ws:
             if msg.type != aiohttp.WSMsgType.TEXT:
@@ -351,7 +339,7 @@ async def ws_listener():
                 for feat in mon["features"]:
                     code = feat["code"]
                     name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                    base = f"brightdock_{idx}_{name}_{code}"
+                    base = f"ddcci_{idx}_{name}_{code}"
                     if feat["values"] and ent == f"input_select.{base}":
                         rev = {v: k for k, v in feat["values"].items()}
                         he  = rev.get(new)
@@ -371,7 +359,7 @@ async def poll_loop():
             for feat in mon["features"]:
                 code = feat["code"]
                 name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                base = f"brightdock_{idx}_{name}_{code}"
+                base = f"ddcci_{idx}_{name}_{code}"
                 val  = await read_vcp(bus, code)
                 if val is None:
                     continue
@@ -394,7 +382,7 @@ async def main():
     # 1) debug banner
     await print_startup_info()
 
-    # 2) advertise via mDNS
+    # 2) advertise via mDNS off the asyncio loop
     hostname = socket.gethostname()
     ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
     port     = 8000
@@ -408,7 +396,7 @@ async def main():
         server=f"{hostname}.local."
     )
     _zc = Zeroconf()
-    _zc.register_service(info)
+    await asyncio.to_thread(_zc.register_service, info)
     _LOGGER.info(f"Registered mDNS service {SERVICE_TYPE} on {ip_addr}:{port}")
 
     # 3) detect & HA register
@@ -422,11 +410,14 @@ async def main():
     ws_task   = asyncio.create_task(ws_listener())
     poll_task = asyncio.create_task(poll_loop())
 
-    await asyncio.wait([http_task, ws_task, poll_task], return_when=asyncio.FIRST_COMPLETED)
+    await asyncio.wait(
+        [http_task, ws_task, poll_task],
+        return_when=asyncio.FIRST_COMPLETED
+    )
 
-    # 5) cleanup mDNS
+    # 5) cleanup mDNS off the asyncio loop
     _LOGGER.info("Unregistering mDNS service and shutting down…")
-    _zc.unregister_service(info)
+    await asyncio.to_thread(_zc.unregister_service, info)
     _zc.close()
 
 if __name__ == "__main__":
