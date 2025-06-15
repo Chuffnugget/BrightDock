@@ -1,10 +1,11 @@
-# File: __init__.py
+# File: custom_components/brightdock/__init__.py
 # Description: Python file for initialising the BrightDock integration.
 # Author: Chuffnugget
 
 import logging
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback, Event
+from homeassistant.const import EVENT_STATE_CHANGED
 
 from .const import DOMAIN
 from .coordinator import DDCDataUpdateCoordinator
@@ -31,8 +32,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     _LOGGER.info(
         "Forwarding BrightDock Core entry to platforms @ %s:%s", host, port
     )
-    # Proper plural call to forward to both platforms
+    # Forward to both sensor & number platforms
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "number"])
+
+    @callback
+    def _log_state_changes(event: Event):
+        """Log any brightness/contrast/input_slider changes done by the user."""
+        entity_id = event.data.get("entity_id")
+        if not entity_id or DOMAIN not in entity_id:
+            return
+        old = event.data.get("old_state")
+        new = event.data.get("new_state")
+        old_val = old.state if old else None
+        new_val = new.state if new else None
+        _LOGGER.info(
+            "User changed %s: %s → %s",
+            entity_id,
+            old_val,
+            new_val,
+        )
+
+    hass.bus.async_listen(EVENT_STATE_CHANGED, _log_state_changes)
 
     return True
 
@@ -45,4 +65,3 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok
-
