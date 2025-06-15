@@ -6,6 +6,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback, Event
 from homeassistant.const import EVENT_STATE_CHANGED
+from homeassistant.helpers.entity_registry import async_get as async_get_registry
 
 from .const import DOMAIN
 from .coordinator import DDCDataUpdateCoordinator
@@ -38,18 +39,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     def _log_state_changes(event: Event):
         """Log any brightness/contrast/input changes done by the user."""
         entity_id = event.data.get("entity_id")
-        if not entity_id or DOMAIN not in entity_id:
+        if not entity_id:
+            return
+        # Only log events for entities owned by this integration
+        registry = async_get_registry(hass)
+        reg_entry = registry.async_get(entity_id)
+        if not reg_entry or reg_entry.domain != DOMAIN:
             return
         old = event.data.get("old_state")
         new = event.data.get("new_state")
         old_val = old.state if old else None
         new_val = new.state if new else None
-        _LOGGER.info(
-            "User changed %s: %s → %s",
-            entity_id,
-            old_val,
-            new_val,
-        )
+        _LOGGER.info("User changed %s: %s → %s", entity_id, old_val, new_val)
 
     hass.bus.async_listen(EVENT_STATE_CHANGED, _log_state_changes)
 
