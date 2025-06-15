@@ -5,6 +5,7 @@
 import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN
 
@@ -12,14 +13,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up Sensor entities for monitor models + connection status."""
+    """Set up Sensor entities for each monitor’s model name and connection status."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    entities: list[SensorEntity] = []
+    entities = []
 
-    # --- Connection status sensor ---
+    # Connection status sensor
     entities.append(BrightDockConnectionSensor(coordinator, entry))
 
-    # --- One model sensor per detected monitor ---
+    # One model‐name sensor per detected monitor
     for mon in coordinator.data["monitors"]:
         mon_id = mon["id"]
         model = mon.get("model")
@@ -43,7 +44,8 @@ class BrightDockConnectionSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> str:
         """Return 'connected' or 'error: ...' based on last update."""
-        if self.coordinator.last_update_successful:
+        # DataUpdateCoordinator now uses 'last_update_success'
+        if getattr(self.coordinator, "last_update_success", False):
             return "connected"
         return f"error: {self.coordinator.last_update_exception}"
 
@@ -52,7 +54,7 @@ class BrightDockConnectionSensor(CoordinatorEntity, SensorEntity):
         """Expose last exception, success flag, and last update time."""
         return {
             "last_exception": str(self.coordinator.last_update_exception),
-            "last_update_successful": self.coordinator.last_update_successful,
+            "last_update_success": getattr(self.coordinator, "last_update_success", False),
             "last_update_time": (
                 self.coordinator.last_update_time.isoformat()
                 if self.coordinator.last_update_time
@@ -61,14 +63,16 @@ class BrightDockConnectionSensor(CoordinatorEntity, SensorEntity):
         }
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Tie this entity to the underlying BrightDock Core device."""
-        return {
-            "identifiers": {(DOMAIN, self._entry_id)},
-            "name": f"BrightDock Core @ {self.coordinator.host}:{self.coordinator.port}",
-            "manufacturer": "Chuffnugget",
-            "model": "DDC/CI Monitor Controller",
-        }
+        host = self.coordinator.host
+        port = self.coordinator.port
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry_id)},
+            name=f"BrightDock Core @ {host}:{port}",
+            manufacturer="Chuffnugget",
+            model="DDC/CI Monitor Controller",
+        )
 
 
 class DDCSensor(CoordinatorEntity, SensorEntity):
@@ -88,11 +92,13 @@ class DDCSensor(CoordinatorEntity, SensorEntity):
         return self._model
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Tie this entity to the underlying BrightDock Core device."""
-        return {
-            "identifiers": {(DOMAIN, self._entry_id)},
-            "name": f"BrightDock Core @ {self.coordinator.host}:{self.coordinator.port}",
-            "manufacturer": "Chuffnugget",
-            "model": "DDC/CI Monitor Controller",
-        }
+        host = self.coordinator.host
+        port = self.coordinator.port
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry_id)},
+            name=f"BrightDock Core @ {host}:{port}",
+            manufacturer="Chuffnugget",
+            model="DDC/CI Monitor Controller",
+        )
