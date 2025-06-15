@@ -71,7 +71,7 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
         await self.coordinator.async_request_refresh()
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict:
         """Tie this entity to the underlying BrightDock Core device."""
         return {
             "identifiers": {(DOMAIN, self._entry_id)},
@@ -79,3 +79,4 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
             "manufacturer": "Chuffnugget",
             "model": "DDC/CI Monitor Controller",
         }
+

@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import voluptuous as vol
+from typing import Any
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers.typing import DiscoveryInfoType
+from homeassistant.data_entry_flow import FlowResult
 
 from .const import DOMAIN, DEFAULT_PORT
 
@@ -20,12 +22,12 @@ class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.FlowResult:
+    ) -> FlowResult:
         """Handle the initial step where the user provides host/port."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Prevent duplicates by host:port
+            # Prevent duplicate entries for the same host:port
             await self.async_set_unique_id(f"{user_input[CONF_HOST]}:{user_input[CONF_PORT]}")
             self._abort_if_unique_id_configured()
 
@@ -46,7 +48,7 @@ class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(
         self, discovery_info: DiscoveryInfoType
-    ) -> config_entries.FlowResult:
+    ) -> FlowResult:
         """Handle zeroconf discovery of a BrightDock Core HTTP server."""
         host = discovery_info["host"]
         port = discovery_info["port"]
@@ -65,3 +67,4 @@ class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         """If you later add options, return an OptionsFlow here."""
         return None
+
