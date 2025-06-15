@@ -1,4 +1,4 @@
-# File: custom_components/brightdock/sensor.py
+# File: sensor.py
 # Description: Python file that communicates with the coordinator and manages sensor entities.
 # Author: Chuffnugget
 
@@ -44,16 +44,15 @@ class BrightDockConnectionSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self) -> str:
         """Return 'connected' or 'error: ...' based on last update."""
-        # DataUpdateCoordinator now uses 'last_update_success'
         if getattr(self.coordinator, "last_update_success", False):
             return "connected"
-        return f"error: {self.coordinator.last_update_exception}"
+        return f"error: {self.coordinator.last_exception}"
 
     @property
     def extra_state_attributes(self) -> dict:
         """Expose last exception, success flag, and last update time."""
         return {
-            "last_exception": str(self.coordinator.last_update_exception),
+            "last_exception": str(self.coordinator.last_exception),
             "last_update_success": getattr(self.coordinator, "last_update_success", False),
             "last_update_time": (
                 self.coordinator.last_update_time.isoformat()
