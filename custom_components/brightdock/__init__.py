@@ -32,12 +32,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     _LOGGER.info(
         "Forwarding BrightDock Core entry to platforms @ %s:%s", host, port
     )
-    # Forward to both sensor & number platforms
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "number"])
 
     @callback
     def _log_state_changes(event: Event):
-        """Log any brightness/contrast/input_slider changes done by the user."""
+        """Log any brightness/contrast/input changes done by the user."""
         entity_id = event.data.get("entity_id")
         if not entity_id or DOMAIN not in entity_id:
             return
