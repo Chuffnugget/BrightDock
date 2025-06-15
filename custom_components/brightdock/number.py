@@ -1,4 +1,4 @@
-# File: number.py
+# File: custom_components/brightdock/number.py
 # Description: Python file that communicates with the coordinator and manages number entities.
 # Author: Chuffnugget
 
@@ -61,11 +61,13 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
         payload = {self._control: int(value)}
         _LOGGER.info(
             "Writing %s for monitor %s → %s",
-            self._control, self._mon_id, value
+            self._control,
+            self._mon_id,
+            value,
         )
         await self.coordinator.session.post(
             f"{url}/monitors/{self._mon_id}/{self._control}",
-            json=payload
+            json=payload,
         )
         # trigger an immediate data refresh
         await self.coordinator.async_request_refresh()
@@ -79,4 +81,3 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
             "manufacturer": "Chuffnugget",
             "model": "DDC/CI Monitor Controller",
         }
-
