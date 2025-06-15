@@ -43,22 +43,31 @@ class BrightDockConnectionSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        """Return 'connected' or 'error: …' based on last update."""
-        if self.coordinator.last_update_success:
+        """Return 'connected' or 'error: ...' based on last update."""
+        # DataUpdateCoordinator now uses 'last_update_success'
+        success = getattr(self.coordinator, "last_update_success", False)
+        if success:
             return "connected"
-        return f"error: {self.coordinator.last_update_exception}"
+        error = getattr(
+            self.coordinator,
+            "last_update_exception",
+            getattr(self.coordinator, "last_update_error", None),
+        )
+        return f"error: {error}"
 
     @property
     def extra_state_attributes(self) -> dict:
         """Expose last exception, success flag, and last update time."""
+        last_exc = getattr(
+            self.coordinator,
+            "last_update_exception",
+            getattr(self.coordinator, "last_update_error", None),
+        )
+        last_time = getattr(self.coordinator, "last_update_time", None)
         return {
-            "last_exception": str(self.coordinator.last_update_exception),
-            "last_update_success": self.coordinator.last_update_success,
-            "last_update_time": (
-                self.coordinator.last_update_time.isoformat()
-                if self.coordinator.last_update_time
-                else None
-            ),
+            "last_exception": str(last_exc),
+            "last_update_success": getattr(self.coordinator, "last_update_success", False),
+            "last_update_time": last_time.isoformat() if last_time else None,
         }
 
     @property
