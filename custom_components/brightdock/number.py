@@ -1,4 +1,4 @@
-# File: custom_components/brightdock/number.py
+# File: number.py
 # Description: Python file that communicates with the coordinator and manages number entities.
 # Author: Chuffnugget
 
@@ -59,18 +59,24 @@ class DDCNumber(CoordinatorEntity, NumberEntity):
         """Handle user changing the value; POST back to the REST server."""
         url = f"http://{self.coordinator.host}:{self.coordinator.port}"
         payload = {self._control: int(value)}
-        _LOGGER.info(
-            "Writing %s for monitor %s → %s",
-            self._control,
-            self._mon_id,
-            value,
-        )
+        _LOGGER.info("Writing %s for monitor %s → %s", self._control, self._mon_id, value)
+
         await self.coordinator.session.post(
             f"{url}/monitors/{self._mon_id}/{self._control}",
-            json=payload,
+            json=payload
         )
         # trigger an immediate data refresh
         await self.coordinator.async_request_refresh()
+
+        # emit an event so you can hook into UI actions or automations
+        self.coordinator.hass.bus.async_fire(
+            "brightdock_control_changed",
+            {
+                "monitor_id": self._mon_id,
+                "control": self._control,
+                "value": int(value),
+            },
+        )
 
     @property
     def device_info(self) -> dict:
