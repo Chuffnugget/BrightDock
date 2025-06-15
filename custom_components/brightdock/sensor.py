@@ -3,7 +3,6 @@
 # Author: Chuffnugget
 
 import logging
-
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -13,10 +12,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up Sensor entities for each monitor’s model name."""
+    """Set up Sensor entities for each monitor’s model name and connection status."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
+    # Add the connection status sensor
+    entities.append(BrightDockConnectionSensor(coordinator, entry))
+
+    # Existing monitor‐model sensors
     for mon in coordinator.data["monitors"]:
         mon_id = mon["id"]
         model = mon.get("model")
@@ -24,6 +27,40 @@ async def async_setup_entry(hass, entry, async_add_entities):
         entities.append(DDCSensor(coordinator, entry.entry_id, mon_id, model))
 
     async_add_entities(entities)
+
+
+class BrightDockConnectionSensor(CoordinatorEntity, SensorEntity):
+    """Sensor entity to report connection status to BrightDock Core."""
+
+    def __init__(self, coordinator, entry):
+        """Initialize the connection status sensor."""
+        super().__init__(coordinator)
+        self._entry = entry
+        host = entry.data["host"]
+        port = entry.data["port"]
+        self._attr_name = f"BrightDock Connection @ {host}:{port}"
+        self._attr_unique_id = f"{entry.entry_id}_connection_status"
+
+    @property
+    def native_value(self) -> str:
+        """Return 'connected' or 'error: ...' based on last update."""
+        if self.coordinator.last_update_successful:
+            return "connected"
+        err = self.coordinator.last_update_exception
+        return f"error: {err}"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Expose last exception, success flag, and last update time."""
+        return {
+            "last_exception": str(self.coordinator.last_update_exception),
+            "last_update_successful": self.coordinator.last_update_successful,
+            "last_update_time": (
+                self.coordinator.last_update_time.isoformat()
+                if self.coordinator.last_update_time
+                else None
+            ),
+        }
 
 
 class DDCSensor(CoordinatorEntity, SensorEntity):
@@ -51,4 +88,3 @@ class DDCSensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "Chuffnugget",
             "model": "DDC/CI Monitor Controller",
         }
-
