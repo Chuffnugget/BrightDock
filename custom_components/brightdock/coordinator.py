@@ -12,6 +12,7 @@ from .const import DOMAIN, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class DDCDataUpdateCoordinator(DataUpdateCoordinator):
     """
     Coordinator that:
@@ -25,6 +26,8 @@ class DDCDataUpdateCoordinator(DataUpdateCoordinator):
         self.host = host
         self.port = port
         self.session = aiohttp.ClientSession()
+        # track last exception for the connection‐status sensor
+        self.last_exception: Exception | None = None
 
         super().__init__(
             hass,
@@ -37,6 +40,9 @@ class DDCDataUpdateCoordinator(DataUpdateCoordinator):
         """Fetch monitor list and control values."""
         base_url = f"http://{self.host}:{self.port}"
         try:
+            # clear any previous error
+            self.last_exception = None
+
             # 1) Discover monitors
             async with self.session.get(f"{base_url}/monitors") as resp:
                 resp.raise_for_status()
@@ -48,7 +54,7 @@ class DDCDataUpdateCoordinator(DataUpdateCoordinator):
                 "controls": {ctrl: {} for ctrl in self.CONTROLS},
             }
 
-            # 2) For each monitor, probe each control endpoint
+            # 2) Probe each control on each monitor
             for mon in monitors:
                 mid = mon["id"]
                 for ctrl in self.CONTROLS:
@@ -72,5 +78,6 @@ class DDCDataUpdateCoordinator(DataUpdateCoordinator):
 
         except Exception as err:
             _LOGGER.error("Failed fetching DDC data: %s", err, exc_info=True)
+            # store for connection‐status sensor
+            self.last_exception = err
             raise UpdateFailed(err)
-
