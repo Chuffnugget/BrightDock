@@ -1,0 +1,16 @@
+# File: requirements.txt
+# Description: Python requirements for HDMI-Control Core.
+# Author: Chuffnugget
+
+# HTTP API framework for defining REST endpoints
+fastapi>=0.115.12
+
+# ASGI server (with uvloop, httptools, etc.) for running FastAPI
+uvicorn[standard]>=0.34.3
+
+# Async HTTP client (and WebSocket) for HA push/poll
+aiohttp>=3.8.0
+
+# Service discovery via mDNS/zeroconf
+zeroconf>=0.52.0
+
