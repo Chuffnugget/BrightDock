@@ -49,10 +49,11 @@ class HDMIControlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_zeroconf(
         self, discovery_info: DiscoveryInfoType
     ) -> FlowResult:
-        """Handle zeroconf discovery of an HDMI Control Core HTTP server."""
+        """Handle zeroconf discovery of a HDMI Control Core HTTP server."""
         host = discovery_info["host"]
         port = discovery_info["port"]
 
+        # Prevent duplicates
         await self.async_set_unique_id(f"{host}:{port}")
         self._abort_if_unique_id_configured()
 
