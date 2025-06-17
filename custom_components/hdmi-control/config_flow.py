@@ -1,8 +1,8 @@
 # File: config_flow.py
-# Description: Python file for managing the HDMI Control devices and integration setup.
+# Description: Python file for managing the HDMI-Control devices and integration setup.
 # Author: Chuffnugget
-
 from __future__ import annotations
+
 import voluptuous as vol
 from typing import Any
 
@@ -14,8 +14,8 @@ from homeassistant.data_entry_flow import FlowResult
 
 from .const import DOMAIN, DEFAULT_PORT
 
-class HDMIControlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for HDMI Control integration."""
+class DDCCIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for HDMI-Control integration."""
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
@@ -32,7 +32,7 @@ class HDMIControlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             return self.async_create_entry(
-                title=f"HDMI Control @ {user_input[CONF_HOST]}:{user_input[CONF_PORT]}",
+                title=f"HDMI-Control @ {user_input[CONF_HOST]}:{user_input[CONF_PORT]}",
                 data=user_input,
             )
 
@@ -49,7 +49,7 @@ class HDMIControlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_zeroconf(
         self, discovery_info: DiscoveryInfoType
     ) -> FlowResult:
-        """Handle zeroconf discovery of a HDMI Control Core HTTP server."""
+        """Handle zeroconf discovery of a HDMI-Control Core HTTP server."""
         host = discovery_info["host"]
         port = discovery_info["port"]
 
@@ -58,7 +58,7 @@ class HDMIControlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured()
 
         return self.async_create_entry(
-            title=f"HDMI Control @ {host}:{port}",
+            title=f"HDMI-Control @ {host}:{port}",
             data={CONF_HOST: host, CONF_PORT: port},
         )
 
