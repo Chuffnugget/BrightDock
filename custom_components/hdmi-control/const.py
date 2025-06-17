@@ -10,3 +10,4 @@ DEFAULT_PORT = 8000
 
 # seconds between DataUpdateCoordinator polls
 UPDATE_INTERVAL = 10
+
