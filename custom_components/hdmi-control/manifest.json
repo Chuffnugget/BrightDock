@@ -1,14 +1,14 @@
 {
-  "domain": "hdmi-control",
-  "name": "HDMI Control",
-  "version": "0.0.7",
-  "documentation": "https://github.com/Chuffnugget/HDMI-Control",
-  "requirements": ["aiohttp"],
-  "dependencies": [],
   "codeowners": ["@Chuffnugget"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/Chuffnugget/HDMI-Control",
+  "domain": "hdmi-control",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/Chuffnugget/HDMI-Control/issues",
-  "config_flow": true,
+  "name": "HDMI-Control",
+  "requirements": ["aiohttp"],
   "supports_entry_removal": true,
+  "version": "0.0.8",
   "zeroconf": ["_hdmi-control-core._tcp.local."]
 }
