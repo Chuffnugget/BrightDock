@@ -1,5 +1,5 @@
 {
-  "name": "BrightDock",
+  "name": "HDMI-Control",
   "content_in_root": false,
   "homeassistant": "2023.7.0",
   "hacs": "1.0.0",
