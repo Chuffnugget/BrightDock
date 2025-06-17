@@ -2,7 +2,7 @@
 # Description: Python file for storing constants that may be used in other Python files.
 # Author: Chuffnugget
 
-DOMAIN = "hdmi_control"
+DOMAIN = "hdmi-control"
 
 CONF_HOST = "host"
 CONF_PORT = "port"
