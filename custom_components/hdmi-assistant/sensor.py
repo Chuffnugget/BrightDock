@@ -1,5 +1,5 @@
 # File: sensor.py
-# Description: Python file that communicates with the coordinator and manages sensor entities.
+# Description: Manages sensor entities (model name + connection status) for HDMI Assistant.
 # Author: Chuffnugget
 
 import logging
@@ -11,80 +11,67 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up Sensor entities for each monitor’s model name and connection status."""
+    """Set up Sensor entities for each monitor model and connection status."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
     # Connection status sensor
-    entities.append(HDMIControlHDMIControlConnectionSensor(coordinator, entry))
+    entities.append(AssistantConnectionSensor(coordinator, entry))
 
-    # One model-name sensor per detected monitor
+    # One model‐name sensor per detected monitor
     for mon in coordinator.data["monitors"]:
         mon_id = mon["id"]
         model = mon.get("model")
         _LOGGER.info("Registering Sensor entity: Monitor %s Model", mon_id)
-        entities.append(DDCSensor(coordinator, entry.entry_id, mon_id, model))
+        entities.append(ModelSensor(coordinator, entry.entry_id, mon_id, model))
 
     async_add_entities(entities)
 
-
-class HDMIControlHDMIControlConnectionSensor(CoordinatorEntity, SensorEntity):
-    """Sensor entity to report connection status to HDMI-Control Core."""
+class AssistantConnectionSensor(CoordinatorEntity, SensorEntity):
+    """Reports connection status to the HDMI Assistant Node."""
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator)
         self._entry_id = entry.entry_id
         host = entry.data["host"]
         port = entry.data["port"]
-        self._attr_name = f"HDMI-Control Connection @ {host}:{port}"
+        self._attr_name = f"HDMI Assistant Connection @ {host}:{port}"
         self._attr_unique_id = f"{entry.entry_id}_connection_status"
 
     @property
     def native_value(self) -> str:
         """Return 'connected' or 'error: ...' based on last update."""
-        # DataUpdateCoordinator now uses 'last_update_success'
         success = getattr(self.coordinator, "last_update_success", False)
         if success:
             return "connected"
-        error = getattr(
-            self.coordinator,
-            "last_update_exception",
-            getattr(self.coordinator, "last_update_error", None),
-        )
-        return f"error: {error}"
+        err = self.coordinator.last_exception or "unknown"
+        return f"error: {err}"
 
     @property
     def extra_state_attributes(self) -> dict:
         """Expose last exception, success flag, and last update time."""
-        last_exc = getattr(
-            self.coordinator,
-            "last_update_exception",
-            getattr(self.coordinator, "last_update_error", None),
-        )
         last_time = getattr(self.coordinator, "last_update_time", None)
         return {
-            "last_exception": str(last_exc),
+            "last_exception": str(self.coordinator.last_exception),
             "last_update_success": getattr(self.coordinator, "last_update_success", False),
             "last_update_time": last_time.isoformat() if last_time else None,
         }
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Tie this entity to the underlying HDMI-Control Core device."""
+        """Tie this sensor to the HDMI Assistant Node device."""
         host = self.coordinator.host
         port = self.coordinator.port
         return DeviceInfo(
             identifiers={(DOMAIN, self._entry_id)},
-            name=f"HDMI-Control Core @ {host}:{port}",
+            name=f"HDMI Assistant Node @ {host}:{port}",
             manufacturer="Chuffnugget",
-            model="DDC/CI Monitor Controller",
+            model="HDMI Assistant Node",
         )
 
-
-class DDCSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a monitor’s model name."""
+class ModelSensor(CoordinatorEntity, SensorEntity):
+    """Represents a monitor’s model name."""
 
     def __init__(self, coordinator, entry_id: str, mon_id: int, model: str):
         super().__init__(coordinator)
@@ -101,12 +88,11 @@ class DDCSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Tie this entity to the underlying HDMI-Control Core device."""
         host = self.coordinator.host
         port = self.coordinator.port
         return DeviceInfo(
             identifiers={(DOMAIN, self._entry_id)},
-            name=f"HDMI-Control Core @ {host}:{port}",
+            name=f"HDMI Assistant Node @ {host}:{port}",
             manufacturer="Chuffnugget",
-            model="DDC/CI Monitor Controller",
+            model="HDMI Assistant Node",
         )

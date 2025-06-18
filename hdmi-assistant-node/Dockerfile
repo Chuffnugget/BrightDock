@@ -1,6 +1,7 @@
 # File: Dockerfile
-# Description: Dockerfile for HDMI-Control Core.
+# Description: Dockerfile for HDMI Assistant Node.
 # Author: Chuffnugget
+
 FROM python:3.11-slim
 
 # Install ddcutil + i2c-tools and build tools
@@ -15,11 +16,11 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -U pip \
  && pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-# No HTTP port to expose—this script just talks to HA
-ENTRYPOINT ["python3", "app/hdmi-control-core.py"]
+# Run the HDMI Assistant Node process
+ENTRYPOINT ["python3", "app/hdmi_assistant_node.py"]    # ← updated script name

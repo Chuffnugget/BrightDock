@@ -1,5 +1,5 @@
 # File: coordinator.py
-# Description: Python file fetching HDMI-Control Core values and handles discovery.
+# Description: Python file fetching HDMI Assistant Node values and handling discovery.
 # Author: Chuffnugget
 
 import logging
@@ -12,12 +12,11 @@ from .const import DOMAIN, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
-
-class DDCDataUpdateCoordinator(DataUpdateCoordinator):
+class HDMIDataUpdateCoordinator(DataUpdateCoordinator):
     """
     Coordinator that:
      1. Discovers which monitors and which controls (brightness, contrast, input)
-     2. Periodically fetches their values via the REST server
+     2. Periodically fetches their values via the HDMI Assistant Node REST API
     """
 
     CONTROLS = ["brightness", "contrast", "input_source"]
@@ -37,7 +36,7 @@ class DDCDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
-        """Fetch monitor list and control values."""
+        """Fetch monitor list and control values from the HDMI Assistant Node."""
         base_url = f"http://{self.host}:{self.port}"
         try:
             # clear any previous error
@@ -70,14 +69,13 @@ class DDCDataUpdateCoordinator(DataUpdateCoordinator):
                         )
                     except Exception as err:
                         _LOGGER.debug(
-                            "Monitor %s does NOT support %s (%s)",
-                            mid, ctrl, err
+                            "Monitor %s does NOT support %s (%s)", mid, ctrl, err
                         )
 
             return data
 
         except Exception as err:
-            _LOGGER.error("Failed fetching DDC data: %s", err, exc_info=True)
+            _LOGGER.error("Failed fetching HDMI Assistant data: %s", err, exc_info=True)
             # store for connection-status sensor
             self.last_exception = err
             raise UpdateFailed(err)

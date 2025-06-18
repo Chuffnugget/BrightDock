@@ -1,5 +1,5 @@
 # File: requirements.txt
-# Description: Python requirements for HDMI-Control Core.
+# Description: Python requirements for HDMI Assistant Node.
 # Author: Chuffnugget
 
 # HTTP API framework for defining REST endpoints
@@ -13,4 +13,3 @@ aiohttp>=3.8.0
 
 # Service discovery via mDNS/zeroconf
 zeroconf>=0.52.0
-

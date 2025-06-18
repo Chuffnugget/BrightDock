@@ -1,0 +1,14 @@
+{
+  "codeowners": ["@Chuffnugget"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/Chuffnugget/HDMI-Assistant",
+  "domain": "hdmi_assistant",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Chuffnugget/HDMI-Assistant/issues",
+  "name": "HDMI Assistant",
+  "requirements": ["aiohttp"],
+  "supports_entry_removal": true,
+  "version": "0.0.1",
+  "zeroconf": ["_hdmi-assistant-node._tcp.local."]
+}

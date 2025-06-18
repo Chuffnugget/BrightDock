@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# File: hdmi-control-core.py
-# Description: Python file for HDMI-Control Core with mDNS advertisement.
+# File: hdmi_assistant_node.py
+# Description: Python file for HDMI Assistant Node with mDNS advertisement.
 # Author: Chuffnugget
 
 import os
@@ -25,8 +25,8 @@ from zeroconf import Zeroconf, ServiceInfo
 HA_URL        = os.getenv("HA_URL")
 HA_TOKEN      = os.getenv("HA_TOKEN")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "30"))
-SERVICE_TYPE  = "_hdmi-control-core._tcp.local."
-SERVICE_NAME  = "HDMI-Control Core"
+SERVICE_TYPE  = "_hdmi-assistant-node._tcp.local."
+SERVICE_NAME  = "HDMI Assistant Node"
 
 if not HA_URL or not HA_TOKEN:
     print("Error: HA_URL and HA_TOKEN environment variables are required", file=sys.stderr)
@@ -37,7 +37,7 @@ HEADERS = {
     "Content-Type":  "application/json",
 }
 
-_LOGGER = logging.getLogger("hdmicontrol_core")
+_LOGGER = logging.getLogger("hdmiassistant_node")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 # VCP codes we expose via HTTP
@@ -49,7 +49,7 @@ VCP_CODES = {
 
 # ── FastAPI HTTP API ──────────────────────────────────────────────────────────
 
-app = FastAPI(title="HDMI-Control Core")
+app = FastAPI(title="HDMI Assistant Node")
 
 class BrightnessPayload(BaseModel):
     brightness: int
@@ -151,7 +151,7 @@ def get_ip_address(ifname: str) -> str | None:
 async def print_startup_info():
     """Print debug info and HA connectivity check."""
     _LOGGER.info("┌─────────────────────────────────────────────")
-    _LOGGER.info("│ HDMI-Control Core Debug Info on Startup")
+    _LOGGER.info("│ HDMI Assistant Node Debug Info on Startup")
     _LOGGER.info("├─────────────────────────────────────────────")
     _LOGGER.info(f"│ Python:    {platform.python_version()} ({sys.executable})")
     _LOGGER.info(f"│ Platform:  {platform.system()} {platform.release()}")
@@ -278,7 +278,7 @@ async def init_monitors_and_register():
         for feat in feats:
             code = feat["code"]
             name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-            base = f"hdmicontrol_{idx}_{name}_{code}"
+            base = f"hdmiassistant_node_{idx}_{name}_{code}"
             val  = await read_vcp(bus, code)
             if val is None:
                 _LOGGER.warning(f"Feature {code} ({feat['name']}) unreadable; skipping")
@@ -340,7 +340,7 @@ async def ws_listener():
                 for feat in mon["features"]:
                     code = feat["code"]
                     name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                    base = f"hdmicontrol_{idx}_{name}_{code}"
+                    base = f"hdmiassistant_node_{idx}_{name}_{code}"
                     if feat["values"] and ent == f"input_select.{base}":
                         rev = {v: k for k, v in feat["values"].items()}
                         he  = rev.get(new)
@@ -360,7 +360,7 @@ async def poll_loop():
             for feat in mon["features"]:
                 code = feat["code"]
                 name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                base = f"hdmicontrol_{idx}_{name}_{code}"
+                base = f"hdmiassistant_node_{idx}_{name}_{code}"
                 val  = await read_vcp(bus, code)
                 if val is None:
                     continue
@@ -387,7 +387,7 @@ async def main():
     hostname = socket.gethostname()
     ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
     port     = 8000
-    props    = {"version": "0.0.7", "application": SERVICE_NAME}
+    props    = {"version": "0.0.8", "application": SERVICE_NAME}
     info     = ServiceInfo(
         SERVICE_TYPE,
         f"{hostname}.{SERVICE_TYPE}",
@@ -412,7 +412,7 @@ async def main():
     poll_task = asyncio.create_task(poll_loop())
 
     await asyncio.wait(
-        [http_task, ws_task, poll_task],
+        [http_task, ws_task, poll_task], 
         return_when=asyncio.FIRST_COMPLETED
     )
 

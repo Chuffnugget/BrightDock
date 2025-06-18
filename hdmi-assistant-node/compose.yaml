@@ -1,9 +1,9 @@
 # File: compose.yaml
-# Description: Docker Compose file for HDMI-Control Core. This should be used to manage the service once the image has been built.
+# Description: Docker Compose file for HDMI Assistant Node. Manage the service once the image has been built.
 # Author: Chuffnugget
 
 services:
-  hdmi-control-core:
+  hdmi-assistant-node:             
     build: .
     privileged: true
     volumes:
@@ -15,6 +15,5 @@ services:
       - HA_TOKEN
       - POLL_INTERVAL
     ports:
-      - "8000:8000"
+      - "8000:8000"                # host:container
     restart: unless-stopped
-
