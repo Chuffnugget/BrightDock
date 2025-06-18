@@ -3,7 +3,7 @@
 # Author: Chuffnugget
 
 services:
-  hdmi-assistant-node:             
+  hdmi-assistant-node:
     build: .
     privileged: true
     volumes:
@@ -14,6 +14,7 @@ services:
       - HA_URL
       - HA_TOKEN
       - POLL_INTERVAL
+    #network_mode: host     # ← host networking so mDNS (zeroconf) discovery works; change/remove for bridge mode (auto-discovery disabled)
     ports:
-      - "8000:8000"                # host:container
+      - "8000:8000"        # host:container port mapping (ignored in host mode but kept for clarity)
     restart: unless-stopped

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# File: hdmi_assistant_node.py
+# File: hdmi-assistant-node.py
 # Description: Python file for HDMI Assistant Node with mDNS advertisement.
 # Author: Chuffnugget
 
@@ -25,7 +25,8 @@ from zeroconf import Zeroconf, ServiceInfo
 HA_URL        = os.getenv("HA_URL")
 HA_TOKEN      = os.getenv("HA_TOKEN")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "30"))
-SERVICE_TYPE  = "_hdmi-assistant-node._tcp.local."
+# Must be ≤15 bytes for zeroconf instance name
+SERVICE_TYPE  = "_hdmi-assistant._tcp.local."
 SERVICE_NAME  = "HDMI Assistant Node"
 
 if not HA_URL or not HA_TOKEN:
@@ -278,7 +279,7 @@ async def init_monitors_and_register():
         for feat in feats:
             code = feat["code"]
             name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-            base = f"hdmiassistant_node_{idx}_{name}_{code}"
+            base = f"hd   miassistant_node_{idx}_{name}_{code}"
             val  = await read_vcp(bus, code)
             if val is None:
                 _LOGGER.warning(f"Feature {code} ({feat['name']}) unreadable; skipping")
@@ -340,7 +341,7 @@ async def ws_listener():
                 for feat in mon["features"]:
                     code = feat["code"]
                     name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                    base = f"hdmiassistant_node_{idx}_{name}_{code}"
+                    base = f"hd   miassistant_node_{idx}_{name}_{code}"
                     if feat["values"] and ent == f"input_select.{base}":
                         rev = {v: k for k, v in feat["values"].items()}
                         he  = rev.get(new)
@@ -360,7 +361,7 @@ async def poll_loop():
             for feat in mon["features"]:
                 code = feat["code"]
                 name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                base = f"hdmiassistant_node_{idx}_{name}_{code}"
+                base = f"hd   miassistant_node_{idx}_{name}_{code}"
                 val  = await read_vcp(bus, code)
                 if val is None:
                     continue
@@ -383,7 +384,7 @@ async def main():
     # 1) debug banner
     await print_startup_info()
 
-    # 2) advertise via mDNS off the asyncio loop
+    # 2) advertise via mDNS
     hostname = socket.gethostname()
     ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
     port     = 8000
@@ -412,7 +413,7 @@ async def main():
     poll_task = asyncio.create_task(poll_loop())
 
     await asyncio.wait(
-        [http_task, ws_task, poll_task], 
+        [http_task, ws_task, poll_task],
         return_when=asyncio.FIRST_COMPLETED
     )
 

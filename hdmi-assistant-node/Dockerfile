@@ -23,4 +23,4 @@ RUN pip install --no-cache-dir -U pip \
 COPY app ./app
 
 # Run the HDMI Assistant Node process
-ENTRYPOINT ["python3", "app/hdmi_assistant_node.py"]    # ← updated script name
+ENTRYPOINT ["python3", "app/hdmi-assistant-node.py"]
