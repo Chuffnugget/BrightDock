@@ -9,6 +9,6 @@
   "name": "HDMI Assistant",
   "requirements": ["aiohttp"],
   "supports_entry_removal": true,
-  "version": "0.0.1",
+  "version": "0.0.9",
   "zeroconf": ["_hdmi-assistant-node._tcp.local."]
 }
