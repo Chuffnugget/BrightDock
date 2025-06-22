@@ -217,8 +217,8 @@ async def print_startup_info():
 
 # ── DDC/CI via ddcutil ────────────────────────────────────────────────────────
 
-async def run_ddc(cmd: str) -> str:
-    """Run a ddcutil command asynchronously and return its stdout."""
+async def run_ddc(cmd: str) -> tuple[str, str]:
+    """Run a ddcutil command asynchronously and return (stdout, stderr)."""
     _LOGGER.debug(f"▶️  CMD: {cmd}")
     proc = await asyncio.create_subprocess_shell(
         cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -229,12 +229,12 @@ async def run_ddc(cmd: str) -> str:
     if stderr:
         _LOGGER.warning(f"⚠️  STDERR: {stderr}")
     _LOGGER.debug(f"🔹 OUTPUT: {stdout!r}")
-    return stdout
+    return stdout, stderr
 
 
 async def detect_monitors() -> list[dict]:
     """Detect all DDC/CI-capable monitors via ddcutil."""
-    text = await run_ddc("ddcutil detect")
+    text, _ = await run_ddc("ddcutil detect")
     monitors = []
     current = {}
     for line in text.splitlines():
@@ -256,7 +256,7 @@ async def detect_monitors() -> list[dict]:
 
 async def get_capabilities(bus: str) -> list[dict]:
     """Fetch all VCP features for a given I²C bus."""
-    text = await run_ddc(f"ddcutil --bus {bus} capabilities")
+    text, _ = await run_ddc(f"ddcutil --bus {bus} capabilities")
     feats = []
     current = None
     for line in text.splitlines():
@@ -277,7 +277,7 @@ async def get_capabilities(bus: str) -> list[dict]:
 async def read_vcp(bus: str, code: str) -> int | None:
     """Read a single VCP feature value."""
     try:
-        out = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
+        out, err = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
     except Exception as e:
         _LOGGER.error(f"Failed to read VCP {code} on bus {bus}: {e}")
         return None
@@ -291,13 +291,20 @@ async def read_vcp(bus: str, code: str) -> int | None:
 
 
 async def write_vcp(bus: str, code: str, val: int):
-    """Write a single VCP feature value."""
-    try:
-        await run_ddc(f"ddcutil --bus {bus} setvcp {code} {val}")
-    except Exception as e:
-        _LOGGER.error(f"Failed to write VCP {code}={val} on bus {bus}: {e}")
+    """Write a single VCP feature value, retrying on transient failures."""
+    cmd = f"ddcutil --bus {bus} setvcp {code} {val}"
+    for attempt in range(3):
+        stdout, stderr = await run_ddc(cmd)
+        if stderr and "maximum retries exceeded" in stderr.lower():
+            _LOGGER.warning("Attempt %d to write VCP %s failed: %s", attempt+1, code, stderr)
+            await asyncio.sleep(0.1)
+            continue
+        # success or non-retryable error
+        break
     else:
-        _LOGGER.info(f"🔧 setvcp bus={bus} code={code} → {val}")
+        _LOGGER.error("Failed to write VCP %s=%s on bus %s after retries", code, val, bus)
+
+    _LOGGER.info(f"🔧 setvcp bus={bus} code={code} → {val}")
 
 
 # ── Home Assistant Registration ──────────────────────────────────────────────
