@@ -1,3 +1,7 @@
+# File: custom_components/hdmi_assistant/__init__.py
+# Description: Python file for initialising the HDMI Assistant integration.
+# Author: Chuffnugget
+
 import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback, Event
@@ -21,10 +25,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     coordinator = HDMIDataUpdateCoordinator(hass, host, port)
     await coordinator.async_config_entry_first_refresh()
+
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    _LOGGER.info("Forwarding HDMI Assistant Node entry to platforms @ %s:%s", host, port)
-    # ← include "select" here
+    _LOGGER.info(
+        "Forwarding HDMI Assistant Node entry to platforms @ %s:%s", host, port
+    )
+    # ← Add "select" here
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "number", "select"])
 
     @callback
@@ -47,11 +54,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         )
 
     hass.bus.async_listen(EVENT_STATE_CHANGED, _log_state_changes)
+
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry and its platforms."""
-    # ← unload the select platform too
     unload_ok = await hass.config_entries.async_unload_platforms(
         entry, ["sensor", "number", "select"]
     )

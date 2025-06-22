@@ -15,7 +15,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
-    # Only brightness & contrast belong here; input_source is handled by select.py
+    # Only brightness & contrast get NumberEntities.  input_source is handled by select.py.
     for ctrl, values in coordinator.data["controls"].items():
         if ctrl not in ("brightness", "contrast"):
             continue
@@ -37,7 +37,7 @@ class AssistantNumber(CoordinatorEntity, NumberEntity):
         self._attr_name = f"Monitor {mon_id} {control.replace('_',' ').title()}"
         self._attr_unique_id = f"{entry_id}_{mon_id}_{control}"
 
-        # brightness & contrast: 0–100%
+        # brightness & contrast go 0–100%
         self._attr_min_value = 0
         self._attr_max_value = 100
         self._attr_step = 1
