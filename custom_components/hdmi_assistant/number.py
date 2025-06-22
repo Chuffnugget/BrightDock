@@ -58,19 +58,12 @@ class AssistantNumber(CoordinatorEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Send the new value to the node, optimistically update UI, then refresh."""
-        url = f"http://{self.coordinator.host}:{self.coordinator.port}"
-        payload = {self._control: int(value)}
-        _LOGGER.info("Writing %s for monitor %s → %s", self._control, self._mon_id, value)
-
-        # 1) POST to the node
-        await self.coordinator.session.post(
-            f"{url}/monitors/{self._mon_id}/{self._control}", json=payload
-        )
+        _LOGGER.info("Queuing write %s for monitor %s → %s", self._control, self._mon_id, value)
+        # 1) enqueue the write
+        self.coordinator.enqueue_write(self._mon_id, self._control, int(value))
 
         # 2) Optimistically update our local state & push immediately to HA
-        self.coordinator.data["controls"].setdefault(self._control, {})[
-            self._mon_id
-        ] = int(value)
+        self.coordinator.data["controls"].setdefault(self._control, {})[self._mon_id] = int(value)
         self.async_write_ha_state()
 
         # 3) Kick off a full refresh in the background so we eventually reconcile
