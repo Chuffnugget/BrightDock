@@ -9,4 +9,4 @@ CONF_PORT = "port"
 DEFAULT_PORT = 8000
 
 # seconds between DataUpdateCoordinator polls
-UPDATE_INTERVAL = 10
+UPDATE_INTERVAL = 4

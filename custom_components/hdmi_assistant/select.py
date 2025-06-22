@@ -23,7 +23,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     async_add_entities(entities, update_before_add=True)
 
-
 class AssistantInputSelect(CoordinatorEntity, SelectEntity):
     """Dropdown for a monitor’s input-source feature."""
 
@@ -56,10 +55,18 @@ class AssistantInputSelect(CoordinatorEntity, SelectEntity):
         value = int(hex_key, 16)
         url = f"http://{self.coordinator.host}:{self.coordinator.port}"
         _LOGGER.info("Setting input_source for monitor %s → %s (%s)", self._mon_id, option, hex_key)
+
+        # 1) POST to the node
         await self.coordinator.session.post(
             f"{url}/monitors/{self._mon_id}/input_source",
-            json={"input_source": value}
+            json={"input_source": value},
         )
+
+        # 2) Optimistically update local state & immediately write to HA
+        self.coordinator.data["controls"]["input_source"][self._mon_id] = value
+        self.async_write_ha_state()
+
+        # 3) Then refresh in the background
         await self.coordinator.async_request_refresh()
 
     @property
