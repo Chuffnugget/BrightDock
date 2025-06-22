@@ -7,10 +7,9 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/Chuffnugget/HDMI-Assistant/issues",
   "name": "HDMI Assistant",
+  "platforms": ["sensor", "number"],
   "requirements": ["aiohttp"],
   "supports_entry_removal": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "zeroconf": ["_hdmi-assistant-node._tcp.local."]
 }
-
-
