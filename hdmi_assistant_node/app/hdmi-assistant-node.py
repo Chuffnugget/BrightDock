@@ -52,14 +52,18 @@ VCP_CODES = {
 
 app = FastAPI(title="HDMI Assistant Node")
 
+
 class BrightnessPayload(BaseModel):
     brightness: int
+
 
 class ContrastPayload(BaseModel):
     contrast: int
 
+
 class InputPayload(BaseModel):
     input_source: int
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -69,6 +73,7 @@ async def log_requests(request: Request, call_next):
     _LOGGER.info(f"→ {response.status_code} {request.url.path}")
     return response
 
+
 @app.get("/monitors")
 async def api_list_monitors():
     """Return list of detected monitors."""
@@ -76,6 +81,7 @@ async def api_list_monitors():
         {"id": idx, "model": mon["model"], "bus": mon["bus"]}
         for idx, mon in MONITORS.items()
     ]
+
 
 @app.get("/monitors/{mon_id}/brightness")
 async def api_get_brightness(mon_id: int):
@@ -87,6 +93,7 @@ async def api_get_brightness(mon_id: int):
     except KeyError:
         raise HTTPException(status_code=404, detail="Monitor not found")
 
+
 @app.post("/monitors/{mon_id}/brightness")
 async def api_set_brightness(mon_id: int, payload: BrightnessPayload):
     """Set brightness for the given monitor."""
@@ -96,6 +103,7 @@ async def api_set_brightness(mon_id: int, payload: BrightnessPayload):
         raise HTTPException(status_code=404, detail="Monitor not found")
     await write_vcp(bus, VCP_CODES["brightness"], payload.brightness)
     return {"status": "ok", "brightness": payload.brightness}
+
 
 @app.get("/monitors/{mon_id}/contrast")
 async def api_get_contrast(mon_id: int):
@@ -107,6 +115,7 @@ async def api_get_contrast(mon_id: int):
     except KeyError:
         raise HTTPException(status_code=404, detail="Monitor not found")
 
+
 @app.post("/monitors/{mon_id}/contrast")
 async def api_set_contrast(mon_id: int, payload: ContrastPayload):
     """Set contrast for the given monitor."""
@@ -116,6 +125,7 @@ async def api_set_contrast(mon_id: int, payload: ContrastPayload):
         raise HTTPException(status_code=404, detail="Monitor not found")
     await write_vcp(bus, VCP_CODES["contrast"], payload.contrast)
     return {"status": "ok", "contrast": payload.contrast}
+
 
 @app.get("/monitors/{mon_id}/input_source")
 async def api_get_input(mon_id: int):
@@ -127,6 +137,7 @@ async def api_get_input(mon_id: int):
     except KeyError:
         raise HTTPException(status_code=404, detail="Monitor not found")
 
+
 @app.post("/monitors/{mon_id}/input_source")
 async def api_set_input(mon_id: int, payload: InputPayload):
     """Set input source for the given monitor."""
@@ -136,6 +147,29 @@ async def api_set_input(mon_id: int, payload: InputPayload):
         raise HTTPException(status_code=404, detail="Monitor not found")
     await write_vcp(bus, VCP_CODES["input_source"], payload.input_source)
     return {"status": "ok", "input_source": payload.input_source}
+
+
+# ── New: expose friendly input-source labels ─────────────────────────────────
+
+@app.get("/monitors/{mon_id}/input_source_options")
+async def api_input_options(mon_id: int):
+    """Return available input_source codes → labels for this monitor."""
+    try:
+        feats = MONITORS[mon_id]["features"]
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+
+    code = VCP_CODES["input_source"]
+    for feat in feats:
+        if feat["code"] == code and feat.get("values"):
+            # log both raw and friendly
+            _LOGGER.info(
+                f"Monitor {mon_id} input options (raw→friendly): {feat['values']}"
+            )
+            return {"input_source_options": feat["values"]}
+
+    return {"input_source_options": {}}
+
 
 # ── Startup Banner + mDNS Advertisement ───────────────────────────────────────
 
@@ -148,6 +182,7 @@ def get_ip_address(ifname: str) -> str | None:
         return socket.inet_ntoa(addr)
     except OSError:
         return None
+
 
 async def print_startup_info():
     """Print debug info and HA connectivity check."""
@@ -164,7 +199,11 @@ async def print_startup_info():
         if ifname == "lo":
             continue
         ip = get_ip_address(ifname) or "no IPv4"
-        typ = "wireless" if os.path.isdir(f"/sys/class/net/{ifname}/wireless") else "ethernet"
+        typ = (
+            "wireless"
+            if os.path.isdir(f"/sys/class/net/{ifname}/wireless")
+            else "ethernet"
+        )
         _LOGGER.info(f"│   • {ifname:10s} [{typ:8s}] → {ip}")
     _LOGGER.info("├─────────────────────────────────────────────")
     try:
@@ -174,6 +213,7 @@ async def print_startup_info():
     except Exception as e:
         _LOGGER.warning(f"│ HA check failed: {e}")
     _LOGGER.info("└─────────────────────────────────────────────")
+
 
 # ── DDC/CI via ddcutil ────────────────────────────────────────────────────────
 
@@ -190,6 +230,7 @@ async def run_ddc(cmd: str) -> str:
         _LOGGER.warning(f"⚠️  STDERR: {stderr}")
     _LOGGER.debug(f"🔹 OUTPUT: {stdout!r}")
     return stdout
+
 
 async def detect_monitors() -> list[dict]:
     """Detect all DDC/CI-capable monitors via ddcutil."""
@@ -212,6 +253,7 @@ async def detect_monitors() -> list[dict]:
     _LOGGER.info(f"Detected monitors: {monitors}")
     return monitors
 
+
 async def get_capabilities(bus: str) -> list[dict]:
     """Fetch all VCP features for a given I²C bus."""
     text = await run_ddc(f"ddcutil --bus {bus} capabilities")
@@ -231,9 +273,14 @@ async def get_capabilities(bus: str) -> list[dict]:
     _LOGGER.info(f"Capabilities on bus {bus}: {len(feats)} features")
     return feats
 
+
 async def read_vcp(bus: str, code: str) -> int | None:
     """Read a single VCP feature value."""
-    out = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
+    try:
+        out = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
+    except Exception as e:
+        _LOGGER.error(f"Failed to read VCP {code} on bus {bus}: {e}")
+        return None
     m = re.search(r"current value\s*=\s*(\d+)", out)
     if m:
         return int(m.group(1))
@@ -242,10 +289,16 @@ async def read_vcp(bus: str, code: str) -> int | None:
         return int(m.group(1), 16)
     return None
 
+
 async def write_vcp(bus: str, code: str, val: int):
     """Write a single VCP feature value."""
-    await run_ddc(f"ddcutil --bus {bus} setvcp {code} {val}")
-    _LOGGER.info(f"🔧 setvcp bus={bus} code={code} → {val}")
+    try:
+        await run_ddc(f"ddcutil --bus {bus} setvcp {code} {val}")
+    except Exception as e:
+        _LOGGER.error(f"Failed to write VCP {code}={val} on bus {bus}: {e}")
+    else:
+        _LOGGER.info(f"🔧 setvcp bus={bus} code={code} → {val}")
+
 
 # ── Home Assistant Registration ──────────────────────────────────────────────
 
@@ -262,6 +315,7 @@ async def post_state(entity: str, state, attrs: dict | None = None):
                 _LOGGER.error(f"POST {url} → {resp.status}: {text}")
             else:
                 _LOGGER.info(f"Registered {entity} = {state}")
+
 
 # ── Main Setup & Tasks ────────────────────────────────────────────────────────
 
@@ -287,11 +341,12 @@ async def init_monitors_and_register():
                 _LOGGER.warning(f"Feature {code} ({feat['name']}) unreadable; skipping")
                 continue
 
-            if feat["values"]:
+            if feat.get("values"):
                 options = list(feat["values"].values())
                 ent     = f"input_select.{base}"
                 attrs   = {"friendly_name": f"{model} {feat['name']}", "options": options}
                 state   = feat["values"].get(f"{val:02x}", options[0])
+                _LOGGER.info(f"Registering input source options for monitor {idx}: {feat['values']}")
             else:
                 if name in ("brightness", "contrast"):
                     ent   = f"number.{base}"
@@ -308,6 +363,7 @@ async def init_monitors_and_register():
             await post_state(ent, state, attrs)
 
     _LOGGER.info("Initialization and HA registration complete.")
+
 
 async def ws_listener():
     """Listen for state_changed events from HA and push to monitor."""
@@ -344,16 +400,17 @@ async def ws_listener():
                     code = feat["code"]
                     name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
                     base = f"hdmiassistant_node_{idx}_{name}_{code}"
-                    if feat["values"] and ent == f"input_select.{base}":
+                    if feat.get("values") and ent == f"input_select.{base}":
                         rev = {v: k for k, v in feat["values"].items()}
                         he  = rev.get(new)
                         if he:
                             _LOGGER.info(f"WS change: {ent} → {new} ({he})")
                             await write_vcp(bus, code, int(he, 16))
-                    elif not feat["values"] and ent == f"number.{base}":
+                    elif not feat.get("values") and ent == f"number.{base}":
                         _LOGGER.info(f"WS change: {ent} → {new}")
                         await write_vcp(bus, code, int(new))
     await session.close()
+
 
 async def poll_loop():
     """Poll all controls periodically to update HA states."""
@@ -367,7 +424,7 @@ async def poll_loop():
                 val  = await read_vcp(bus, code)
                 if val is None:
                     continue
-                if feat["values"]:
+                if feat.get("values"):
                     ent   = f"input_select.{base}"
                     state = feat["values"].get(f"{val:02x}")
                 elif name in ("brightness", "contrast"):
@@ -378,6 +435,7 @@ async def poll_loop():
                     state = val
                 await post_state(ent, state)
         await asyncio.sleep(POLL_INTERVAL)
+
 
 async def main():
     """Main entrypoint: banner, mDNS, init, HTTP, WS, poll, teardown."""
@@ -390,7 +448,7 @@ async def main():
     hostname = socket.gethostname()
     ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
     port     = 8000
-    props    = {"version": "0.1.2", "application": SERVICE_NAME}
+    props    = {"version": SERVICE_NAME}
     info     = ServiceInfo(
         SERVICE_TYPE,
         f"{hostname}.{SERVICE_TYPE}",
@@ -423,6 +481,7 @@ async def main():
     _LOGGER.info("Unregistering mDNS service and shutting down…")
     await asyncio.to_thread(_zc.unregister_service, info)
     _zc.close()
+
 
 if __name__ == "__main__":
     try:
