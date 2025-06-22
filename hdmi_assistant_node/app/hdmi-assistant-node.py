@@ -235,9 +235,11 @@ async def read_vcp(bus: str, code: str) -> int | None:
     """Read a single VCP feature value."""
     out = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
     m = re.search(r"current value\s*=\s*(\d+)", out)
-    if m: return int(m.group(1))
+    if m:
+        return int(m.group(1))
     m = re.search(r"current value\s*=\s*0x([0-9A-Fa-f]+)", out)
-    if m: return int(m.group(1), 16)
+    if m:
+        return int(m.group(1), 16)
     return None
 
 async def write_vcp(bus: str, code: str, val: int):
@@ -279,7 +281,8 @@ async def init_monitors_and_register():
         for feat in feats:
             code = feat["code"]
             name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-            base = f"hd   miassistant_node_{idx}_{name}_{code}"
+            # ← Fixed here: no stray spaces
+            base = f"hdmiassistant_node_{idx}_{name}_{code}"
             val  = await read_vcp(bus, code)
             if val is None:
                 _LOGGER.warning(f"Feature {code} ({feat['name']}) unreadable; skipping")
@@ -341,7 +344,8 @@ async def ws_listener():
                 for feat in mon["features"]:
                     code = feat["code"]
                     name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                    base = f"hd   miassistant_node_{idx}_{name}_{code}"
+                    # ← And here
+                    base = f"hdmiassistant_node_{idx}_{name}_{code}"
                     if feat["values"] and ent == f"input_select.{base}":
                         rev = {v: k for k, v in feat["values"].items()}
                         he  = rev.get(new)
@@ -361,7 +365,8 @@ async def poll_loop():
             for feat in mon["features"]:
                 code = feat["code"]
                 name = re.sub(r"\W+", "_", feat["name"].lower()).strip("_")
-                base = f"hd   miassistant_node_{idx}_{name}_{code}"
+                # ← And here
+                base = f"hdmiassistant_node_{idx}_{name}_{code}"
                 val  = await read_vcp(bus, code)
                 if val is None:
                     continue
@@ -388,7 +393,7 @@ async def main():
     hostname = socket.gethostname()
     ip_addr  = get_ip_address("eth0") or get_ip_address("wlan0") or "127.0.0.1"
     port     = 8000
-    props    = {"version": "0.0.8", "application": SERVICE_NAME}
+    props    = {"version": "0.0.9", "application": SERVICE_NAME}
     info     = ServiceInfo(
         SERVICE_TYPE,
         f"{hostname}.{SERVICE_TYPE}",
