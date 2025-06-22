@@ -10,6 +10,6 @@
   "platforms": ["sensor", "number", "select"],
   "requirements": ["aiohttp"],
   "supports_entry_removal": true,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "zeroconf": ["_hdmi-assistant-node._tcp.local."]
 }
