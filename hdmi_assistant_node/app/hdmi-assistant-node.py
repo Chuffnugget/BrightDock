@@ -162,7 +162,6 @@ async def api_input_options(mon_id: int):
     code = VCP_CODES["input_source"]
     for feat in feats:
         if feat["code"] == code and feat.get("values"):
-            # log both raw and friendly
             _LOGGER.info(
                 f"Monitor {mon_id} input options (raw→friendly): {feat['values']}"
             )
@@ -217,8 +216,8 @@ async def print_startup_info():
 
 # ── DDC/CI via ddcutil ────────────────────────────────────────────────────────
 
-async def run_ddc(cmd: str) -> tuple[str, str]:
-    """Run a ddcutil command asynchronously and return (stdout, stderr)."""
+async def run_ddc(cmd: str) -> str:
+    """Run a ddcutil command asynchronously and return its stdout."""
     _LOGGER.debug(f"▶️  CMD: {cmd}")
     proc = await asyncio.create_subprocess_shell(
         cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -229,12 +228,12 @@ async def run_ddc(cmd: str) -> tuple[str, str]:
     if stderr:
         _LOGGER.warning(f"⚠️  STDERR: {stderr}")
     _LOGGER.debug(f"🔹 OUTPUT: {stdout!r}")
-    return stdout, stderr
+    return stdout
 
 
 async def detect_monitors() -> list[dict]:
     """Detect all DDC/CI-capable monitors via ddcutil."""
-    text, _ = await run_ddc("ddcutil detect")
+    text = await run_ddc("ddcutil detect")
     monitors = []
     current = {}
     for line in text.splitlines():
@@ -256,7 +255,7 @@ async def detect_monitors() -> list[dict]:
 
 async def get_capabilities(bus: str) -> list[dict]:
     """Fetch all VCP features for a given I²C bus."""
-    text, _ = await run_ddc(f"ddcutil --bus {bus} capabilities")
+    text = await run_ddc(f"ddcutil --bus {bus} capabilities")
     feats = []
     current = None
     for line in text.splitlines():
@@ -277,7 +276,7 @@ async def get_capabilities(bus: str) -> list[dict]:
 async def read_vcp(bus: str, code: str) -> int | None:
     """Read a single VCP feature value."""
     try:
-        out, err = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
+        out = await run_ddc(f"ddcutil --bus {bus} getvcp {code}")
     except Exception as e:
         _LOGGER.error(f"Failed to read VCP {code} on bus {bus}: {e}")
         return None
@@ -291,20 +290,13 @@ async def read_vcp(bus: str, code: str) -> int | None:
 
 
 async def write_vcp(bus: str, code: str, val: int):
-    """Write a single VCP feature value, retrying on transient failures."""
-    cmd = f"ddcutil --bus {bus} setvcp {code} {val}"
-    for attempt in range(3):
-        stdout, stderr = await run_ddc(cmd)
-        if stderr and "maximum retries exceeded" in stderr.lower():
-            _LOGGER.warning("Attempt %d to write VCP %s failed: %s", attempt+1, code, stderr)
-            await asyncio.sleep(0.1)
-            continue
-        # success or non-retryable error
-        break
+    """Write a single VCP feature value."""
+    try:
+        await run_ddc(f"ddcutil --bus {bus} setvcp {code} {val}")
+    except Exception as e:
+        _LOGGER.error(f"Failed to write VCP {code}={val} on bus {bus}: {e}")
     else:
-        _LOGGER.error("Failed to write VCP %s=%s on bus %s after retries", code, val, bus)
-
-    _LOGGER.info(f"🔧 setvcp bus={bus} code={code} → {val}")
+        _LOGGER.info(f"🔧 setvcp bus={bus} code={code} → {val}")
 
 
 # ── Home Assistant Registration ──────────────────────────────────────────────
@@ -315,13 +307,18 @@ async def post_state(entity: str, state, attrs: dict | None = None):
     body = {"state": str(state)}
     if attrs:
         body["attributes"] = attrs
-    async with aiohttp.ClientSession() as sess:
-        async with sess.post(url, headers=HEADERS, json=body) as resp:
-            if resp.status not in (200, 201):
-                text = await resp.text()
-                _LOGGER.error(f"POST {url} → {resp.status}: {text}")
-            else:
-                _LOGGER.info(f"Registered {entity} = {state}")
+    try:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.post(url, headers=HEADERS, json=body) as resp:
+                if resp.status not in (200, 201):
+                    text = await resp.text()
+                    _LOGGER.error(f"POST {url} → {resp.status}: {text}")
+                else:
+                    _LOGGER.info(f"Registered {entity} = {state}")
+    except aiohttp.ClientConnectorError as e:
+        _LOGGER.error(f"Cannot connect to Home Assistant for {entity}: {e}")
+    except Exception as e:
+        _LOGGER.error(f"Unexpected error posting {entity}: {e}")
 
 
 # ── Main Setup & Tasks ────────────────────────────────────────────────────────
