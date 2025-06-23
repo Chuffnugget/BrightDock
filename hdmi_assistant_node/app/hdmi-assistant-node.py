@@ -183,7 +183,11 @@ async def print_startup_info():
         if ifname == "lo":
             continue
         ip = get_ip_address(ifname) or "no IPv4"
-        typ = "wireless" if os.path.isdir(f"/sys/class/net/{ifname}/wireless") else "ethernet"
+        typ = (
+            "wireless"
+            if os.path.isdir(f"/sys/class/net/{ifname}/wireless")
+            else "ethernet"
+        )
         _LOGGER.info(f"│   • {ifname:10s} [{typ:8s}] → {ip}")
     _LOGGER.info("├─────────────────────────────────────────────")
     try:
@@ -257,12 +261,22 @@ async def read_vcp(bus: str, code: str) -> int | None:
     except Exception as e:
         _LOGGER.error(f"Failed to read VCP {code} on bus {bus}: {e}")
         return None
+
+    # table style (brightness/contrast) → decimal
     m = re.search(r"current value\s*=\s*(\d+)", out)
     if m:
         return int(m.group(1))
+
+    # table style hex
     m = re.search(r"current value\s*=\s*0x([0-9A-Fa-f]+)", out)
     if m:
         return int(m.group(1), 16)
+
+    # line style (INPUT SOURCE often emits “sl=0xNN”)
+    m = re.search(r"sl=0x([0-9A-Fa-f]+)", out)
+    if m:
+        return int(m.group(1), 16)
+
     return None
 
 
@@ -334,7 +348,6 @@ async def init_monitors_and_register():
                 options = list(feat["values"].values())
                 ent     = f"input_select.hdmiassistant_node_{idx}_{feat['name'].lower().replace(' ','_')}_{code}"
                 attrs   = {"friendly_name": f"{model} {feat['name']}", "options": options}
-                # lookup human label for current
                 state   = feat["values"].get(f"{val:02x}", options[0])
                 await post_state(ent, state, attrs)
                 continue
@@ -374,7 +387,6 @@ async def ws_listener():
                 bus = mon["bus"]
                 for feat in mon["features"]:
                     code = feat["code"]
-                    # same filtering
                     if code not in VCP_CODES.values():
                         continue
                     name = feat["name"].lower().replace(" ", "_")
