@@ -109,7 +109,7 @@ class ModelSensor(CoordinatorEntity, SensorEntity):
 
 
 class InputSourceSensor(CoordinatorEntity, SensorEntity):
-    """Displays the friendly name of the monitor’s current input source."""
+    """Displays the friendly name (or raw code) of the monitor’s current input source."""
 
     def __init__(self, coordinator, entry_id: str, mon_id: int):
         super().__init__(coordinator)
@@ -121,7 +121,10 @@ class InputSourceSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self) -> str | None:
-        """Return the friendly label of the current input source, or None if unknown."""
+        """
+        Return the friendly label of the current input source if available,
+        otherwise fall back to the raw hex code (e.g. "0x0f").
+        """
         raw = (
             self.coordinator.data.get("controls", {})
             .get("input_source", {})
@@ -129,12 +132,12 @@ class InputSourceSensor(CoordinatorEntity, SensorEntity):
         )
         if raw is None:
             return None
+
         key = f"{raw:02x}"
-        return (
-            self.coordinator.data.get("input_source_options", {})
-            .get(self._mon_id, {})
-            .get(key)
-        )
+        opts = self.coordinator.data.get("input_source_options", {}).get(self._mon_id, {})
+
+        # Friendly name if present, else raw
+        return opts.get(key) or f"0x{key}"
 
     @property
     def device_info(self) -> DeviceInfo:
